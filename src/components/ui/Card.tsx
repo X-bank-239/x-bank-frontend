@@ -40,7 +40,7 @@ export function CardTitle({ className, children, ...props }: CardProps) {
 
 export function CardContent({ className, children, ...props }: CardProps) {
   return (
-    <div className={cn("px-5 pb-5 pt-0", className)} {...props}>
+    <div className={cn("px-5 pb-5 pt-5", className)} {...props}>
       {children}
     </div>
   );
