@@ -1,24 +1,10 @@
 import { Currency, AccountType, TransactionType } from "@/types";
 
 /**
- * Format currency amount with symbol
+ * Format currency amount with symbol (единый формат: знак после числа, запятая как разделитель)
  */
 export function formatCurrency(amount: number, currency: Currency): string {
-  const symbols: Record<Currency, string> = {
-    RUB: "₽",
-    USD: "$",
-    EUR: "€",
-    CNY: "¥",
-  };
-
-  const locales: Record<Currency, string> = {
-    RUB: "ru-RU",
-    USD: "en-US",
-    EUR: "de-DE",
-    CNY: "zh-CN",
-  };
-
-  return new Intl.NumberFormat(locales[currency], {
+  return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: currency,
     currencyDisplay: "narrowSymbol",
@@ -93,10 +79,10 @@ export function formatShortDate(dateString: string): string {
  */
 export function getAccountCardGradient(currency: Currency): string {
   const gradients: Record<Currency, string> = {
-    RUB: "from-primary-600 to-primary-800",
-    USD: "from-teal-500 to-primary-700",
-    EUR: "from-slate-600 to-slate-800",
-    CNY: "from-amber-600 to-amber-800",
+    RUB: "from-emerald-700 to-emerald-900",
+    USD: "from-teal-600 to-primary-800",
+    EUR: "from-slate-700 to-slate-900",
+    CNY: "from-amber-700 to-amber-900",
   };
   return gradients[currency];
 }
@@ -104,7 +90,7 @@ export function getAccountCardGradient(currency: Currency): string {
 /** Цвет верхней полоски карты счёта (стиль Сбера) */
 export function getAccountCardAccent(currency: Currency): string {
   const accents: Record<Currency, string> = {
-    RUB: "bg-primary-600",
+    RUB: "bg-emerald-600",
     USD: "bg-teal-500",
     EUR: "bg-slate-600",
     CNY: "bg-amber-600",
@@ -115,10 +101,7 @@ export function getAccountCardAccent(currency: Currency): string {
 /**
  * Mask account ID for display
  */
-export function maskAccountId(accountId: string): string {
-  if (accountId.length < 8) return accountId;
-  return `****${accountId.slice(-4).toUpperCase()}`;
-}
+
 
 /**
  * Combine class names

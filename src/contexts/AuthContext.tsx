@@ -63,8 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.login(data);
       
-      console.log("Auth response in context:", response);
-      
       // Store token and user_id
       localStorage.setItem("auth_token", response.token);
       localStorage.setItem("user_id", response.user_id);
