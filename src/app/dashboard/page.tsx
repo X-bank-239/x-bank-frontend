@@ -8,38 +8,25 @@ import Link from "next/link";
 export default function DashboardPage() {
   const { user } = useAuth();
 
-  const totalBalance = user?.accounts?.reduce((sum, acc) => {
-    const rates: Record<string, number> = {
-      RUB: 1,
-      USD: 90,
-      EUR: 100,
-      CNY: 13,
-    };
-    return sum + acc.balance * (rates[acc.currency] || 1);
-  }, 0) || 0;
+  // const totalBalance = user?.accounts?.reduce((sum, acc) => {
+  //   const rates: Record<string, number> = {
+  //     RUB: 1,
+  //     USD: 90,
+  //     EUR: 100,
+  //     CNY: 13,
+  //   };
+  //   return sum + acc.balance * (rates[acc.currency] || 1);
+  // }, 0) || 0;
 
-  const formattedBalance = new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(totalBalance);
+  // const formattedBalance = new Intl.NumberFormat("ru-RU", {
+  //   style: "currency",
+  //   currency: "RUB",
+  //   minimumFractionDigits: 0,
+  //   maximumFractionDigits: 0,
+  // }).format(totalBalance);
 
   return (
     <div className="space-y-8">
-      {/* Блок «Доступно» — как в Сбербанк Онлайн: крупно по центру */}
-      <section className="rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-sm border border-slate-200/60 dark:border-slate-800">
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
-          Доступно
-        </p>
-        <p className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-          {formattedBalance}
-        </p>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-          Сумма по всем счетам в рублях
-        </p>
-      </section>
-
       {/* Быстрые действия — горизонтальный ряд как в Сбере */}
       <section>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
