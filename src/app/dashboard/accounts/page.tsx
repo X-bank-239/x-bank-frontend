@@ -157,8 +157,7 @@ export default function AccountsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
-              У вас пока нет счетов
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">У вас пока нет счетов
             </h3>
             <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto text-sm">
               Откройте первый счёт в одной из доступных валют
@@ -175,7 +174,7 @@ export default function AccountsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
         <Card accent>
-          <CardContent className="flex items-start gap-4 pt-5 pb-5">
+          <CardContent className="flex items-start gap-4 pt-5 pb-5 pt-5">
             <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/20 rounded-lg flex items-center justify-center shrink-0">
               <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

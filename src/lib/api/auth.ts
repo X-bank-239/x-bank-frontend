@@ -22,7 +22,6 @@ export const authApi = {
     );
 
     const token = authResponse.token;
-    console.log(token);
     if (!token) {
       throw new Error("Токен не получен от сервера");
     }

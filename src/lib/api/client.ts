@@ -20,7 +20,6 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const token = this.getToken();
-    console.log("Token from localStorage:", token);
 
     const headers: HeadersInit = {
       "Content-Type": "application/json",
@@ -30,13 +29,6 @@ class ApiClient {
     if (token) {
       (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
     }
-
-    console.log("Request:", {
-      method: options.method || "GET",
-      url: `${this.baseUrl}${endpoint}`,
-      headers,
-      body: options.body,
-    });
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
@@ -71,22 +63,11 @@ class ApiClient {
     // Handle empty responses
     const text = await response.text();
     if (!text) {
-      console.log("Response:", {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: {},
-      });
       return {} as T;
     }
     
     const data = JSON.parse(text);
-    console.log("Response:", {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      body: data,
-    });
+
     return data;
   }
 
@@ -95,7 +76,6 @@ class ApiClient {
     
     // Try different header names
     const authHeader = this.lastResponseHeaders.get("Authorization");
-    console.warn(authHeader);
     if (authHeader) {
       // Remove "Bearer " prefix if present
       // console.warn(authHeader);

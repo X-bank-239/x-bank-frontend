@@ -5,12 +5,22 @@ export default {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/lib/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: "class",
   // Гарантируем генерацию классов палитры (бирюзовый primary, slate)
   safelist: [
     { pattern: /^(bg|text|border|ring)-primary-(50|100|200|300|400|500|600|700|800|900)$/, variants: ["hover", "dark"] },
     { pattern: /^(bg|text)-slate-(50|100|200|800|900|950)$/, variants: ["dark"] },
+    // Градиенты карточек счетов (динамические классы — по одному)
+    "from-emerald-700",
+    "to-emerald-900",
+    "from-teal-600",
+    "to-primary-800",
+    "from-slate-700",
+    "to-slate-900",
+    "from-amber-700",
+    "to-amber-900",
   ],
   theme: {
     extend: {
