@@ -39,9 +39,16 @@ class ApiClient {
     this.lastResponseHeaders = response.headers;
 
     if (!response.ok) {
+      let errorMessage : string;
       const errorText = await response.text();
-      let errorMessage = `Ошибка ${response.status}`;
-      
+      switch (response.status) {
+        case(401):
+          errorMessage = `Ошибка: неверный логин или пароль`;
+          break;
+        default:
+          errorMessage = `Ошибка ${response.status}`;
+      }
+
       try {
         const errorJson = JSON.parse(errorText);
         errorMessage = errorJson.message || errorMessage;

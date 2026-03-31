@@ -85,7 +85,7 @@ export default function TransactionsPage() {
       };
 
       if (type === "TRANSFER") {
-        transactionData.receiver_id = receiverEmail;
+        transactionData.receiver_id = receiverEmail.trim();
       }
 
       switch (type) {
@@ -286,12 +286,25 @@ export default function TransactionsPage() {
                             <p
                               className={cn(
                                 "font-semibold text-base",
-                                tx.transaction_type === "DEPOSIT"
+                                // For correct history sign we need to know whether current account
+                                // is sender or receiver for TRANSFER.
+                                tx.transaction_type === "DEPOSIT" ||
+                                (tx.transaction_type === "TRANSFER" &&
+                                  selectedAccount?.account_id &&
+                                  (tx.receiver_id === selectedAccount.account_id ||
+                                    tx.receiver_name === selectedAccount.account_id))
                                   ? "text-teal-600 dark:text-teal-400"
                                   : "text-slate-800 dark:text-slate-100"
                               )}
                             >
-                              {tx.transaction_type === "DEPOSIT" ? "+" : "-"}
+                              {tx.transaction_type === "DEPOSIT"
+                                ? "+"
+                                : tx.transaction_type === "TRANSFER" &&
+                                    selectedAccount?.account_id &&
+                                    (tx.receiver_id === selectedAccount.account_id ||
+                                      tx.receiver_name === selectedAccount.account_id)
+                                  ? "+"
+                                  : "-"}
                               {formatCurrency(tx.amount, tx.currency)}
                             </p>
                           </div>

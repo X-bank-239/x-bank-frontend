@@ -36,7 +36,8 @@ export const transactionsApi = {
     size: number = 5
   ): Promise<RecentTransactionsResponse> {
     return apiClient.get<RecentTransactionsResponse>(
-      `/transactions/get-recent/${accountId}?page=${page}&size=${size}`
+      // OpenAPI: GET /transactions/get/{accountId}?page=&size=
+      `/transactions/get/${accountId}?page=${page}&size=${size}`
     );
   },
 };
