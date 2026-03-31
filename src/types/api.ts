@@ -73,6 +73,10 @@ export interface TransactionResponse {
   transaction_type: TransactionType;
   sender_name?: string;
   receiver_name?: string;
+  // Optional: backend may return IDs even if OpenAPI doesn't list them.
+  // We use these for correct sign (+/-) when showing history for a specific account.
+  sender_id?: string; // UUID
+  receiver_id?: string; // UUID
   amount: number;
   currency: Currency;
   transaction_date: string; // ISO date-time
