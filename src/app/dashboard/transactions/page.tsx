@@ -85,7 +85,7 @@ export default function TransactionsPage() {
       };
 
       if (type === "TRANSFER") {
-        transactionData.TransactionResponse = receiverEmail.trim();
+        transactionData.receiver_id = receiverEmail.trim();
       }
 
       switch (type) {
