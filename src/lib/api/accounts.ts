@@ -17,13 +17,15 @@ export const accountsApi = {
    * Get bank account by ID
    */
   async getById(accountId: string): Promise<BankAccountResponse> {
-    return apiClient.get<BankAccountResponse>(`/bank-account/get/${accountId}`);
+    // OpenAPI: GET /bank-account/{accountId}
+    return apiClient.get<BankAccountResponse>(`/bank-account/${accountId}`);
   },
 
   /**
    * Get all accounts for a user
    */
   async getByUserId(userId: string): Promise<BankAccountResponse[]> {
-    return apiClient.get<BankAccountResponse[]>(`/user/get-accounts/${userId}`);
+    // OpenAPI: GET /bank-account/list/{userId}
+    return apiClient.get<BankAccountResponse[]>(`/bank-account/list/${userId}`);
   },
 };

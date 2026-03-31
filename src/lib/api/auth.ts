@@ -52,13 +52,15 @@ export const authApi = {
    * Get user profile by ID
    */
   async getProfile(userId: string): Promise<UserProfileResponse> {
-    return apiClient.get<UserProfileResponse>(`/user/get-profile/${userId}`);
+    // OpenAPI: GET /user/{userId}
+    return apiClient.get<UserProfileResponse>(`/user/${userId}`);
   },
 
   /**
    * Get user profile by email
    */
   async getProfileByEmail(email: string): Promise<UserProfileResponse> {
-    return apiClient.get<UserProfileResponse>(`/user/get-profile/email/${email}`);
+    // OpenAPI: GET /user/email/{email}
+    return apiClient.get<UserProfileResponse>(`/user/email/${email}`);
   },
 };
