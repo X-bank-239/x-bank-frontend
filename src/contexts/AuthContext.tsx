@@ -35,15 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUser = useCallback(async () => {
     const token = localStorage.getItem("auth_token");
-    const userId = localStorage.getItem("user_id");
-
-    if (!token || !userId) {
+    if (!token) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const profile = await authApi.getProfile(userId);
+      // Use /user/me to load current user by token
+      const profile = await authApi.getMe();
       setUser(profile);
     } catch (error) {
       console.error("Failed to load user:", error);
@@ -68,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user_id", response.user_id);
 
       // Fetch user profile
-      const profile = await authApi.getProfile(response.user_id);
+      const profile = await authApi.getMe();
       setUser(profile);
       setIsLoading(false);
       
@@ -102,11 +101,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshUser = async () => {
-    const userId = localStorage.getItem("user_id");
-    if (userId) {
-      const profile = await authApi.getProfile(userId);
-      setUser(profile);
-    }
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    const profile = await authApi.getMe();
+    setUser(profile);
   };
 
   return (

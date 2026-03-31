@@ -32,7 +32,8 @@ export const authApi = {
     }
 
     // After login, get profile by email to get user_id
-    const userProfile = await this.getProfileByEmail(data.email);
+    // OpenAPI: GET /user/me возвращает профиль текущего пользователя по bearer-токену.
+    const userProfile = await this.getMe();
 
     if (!userProfile.user_id) {
       throw new Error("ID пользователя не получен от сервера");
@@ -62,5 +63,13 @@ export const authApi = {
   async getProfileByEmail(email: string): Promise<UserProfileResponse> {
     // OpenAPI: GET /user/email/{email}
     return apiClient.get<UserProfileResponse>(`/user/email/${email}`);
+  },
+
+  /**
+   * Get current authenticated user profile
+   * OpenAPI: GET /user/me
+   */
+  async getMe(): Promise<UserProfileResponse> {
+    return apiClient.get<UserProfileResponse>("/user/me");
   },
 };
