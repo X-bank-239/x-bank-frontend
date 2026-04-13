@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { accountsApi } from "@/lib/api";
-import { AccountCard } from "@/components/dashboard";
+import { accountsApi, loansApi } from "@/lib/api";
+import { AccountCard, AccountQuickActionsModal } from "@/components/dashboard";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
-import { Currency, AccountType } from "@/types";
+import type { Currency, AccountType, LoanResponse, BankAccountResponse } from "@/types";
 import { getCurrencyName, getAccountTypeName } from "@/lib/utils";
 
 const currencies: Currency[] = ["RUB", "USD", "EUR", "CNY"];
@@ -16,6 +17,7 @@ export default function AccountsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [createdLoanId, setCreatedLoanId] = useState("");
   const [newAccount, setNewAccount] = useState<{
     currency: Currency;
     account_type: AccountType;
@@ -23,16 +25,59 @@ export default function AccountsPage() {
     currency: "RUB",
     account_type: "DEBIT",
   });
+  const [creditParams, setCreditParams] = useState({
+    principalAmount: "100000",
+    termMonths: "12",
+  });
+  const [loans, setLoans] = useState<LoanResponse[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const data = await loansApi.list();
+        setLoans(data);
+      } catch {
+        // Не блокируем страницу счетов при недоступности кредитного списка.
+      }
+    })();
+  }, []);
+
+  const nextPaymentByCreditAccountId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const loan of loans) {
+      map.set(loan.creditAccountId, loan.nextPaymentDate);
+    }
+    return map;
+  }, [loans]);
 
   const handleCreateAccount = async () => {
     setIsLoading(true);
     setError("");
+    setCreatedLoanId("");
 
     try {
-      await accountsApi.create(newAccount);
+      const createdAccount = await accountsApi.create(newAccount);
+
+      if (newAccount.account_type === "CREDIT") {
+        const principalAmount = Number(creditParams.principalAmount);
+        const termMonths = Number(creditParams.termMonths);
+        if (!(principalAmount > 0) || !(termMonths > 0)) {
+          throw new Error("Укажите корректные параметры кредита (сумма и срок)");
+        }
+        const loan = await loansApi.create({
+          creditAccountId: createdAccount.account_id,
+          principalAmount,
+          termMonths,
+        });
+        setLoans((prev) => [loan, ...prev.filter((x) => x.loanId !== loan.loanId)]);
+        setCreatedLoanId(loan.loanId);
+      }
+
       await refreshUser();
       setIsCreating(false);
       setNewAccount({ currency: "RUB", account_type: "DEBIT" });
+      setCreditParams({ principalAmount: "100000", termMonths: "12" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка создания счёта");
     } finally {
@@ -66,6 +111,22 @@ export default function AccountsPage() {
                       <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
                         {error}
                       </div>
+                  )}
+                  {createdLoanId && (
+                    <div className="mb-4 p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg text-teal-800 dark:text-teal-300 text-sm">
+                      Кредит оформлен. Loan ID:{" "}
+                      <code className="text-xs bg-white/60 dark:bg-slate-900/30 px-1 rounded">
+                        {createdLoanId}
+                      </code>
+                      . Управление — в разделе{" "}
+                      <Link
+                        href="/dashboard/loans"
+                        className="font-medium text-primary-600 dark:text-primary-400 underline"
+                      >
+                        Кредиты
+                      </Link>
+                      .
+                    </div>
                   )}
 
                   <div className="space-y-4">
@@ -103,7 +164,10 @@ export default function AccountsPage() {
                             <button
                                 key={type}
                                 type="button"
-                                onClick={() => setNewAccount((prev) => ({ ...prev, account_type: type }))}
+                                onClick={() => {
+                                  setNewAccount((prev) => ({ ...prev, account_type: type }));
+                                  setCreatedLoanId("");
+                                }}
                                 className={`px-4 py-3 rounded-lg border-2 font-medium transition-all text-sm ${
                                     newAccount.account_type === type
                                         ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400"
@@ -115,6 +179,47 @@ export default function AccountsPage() {
                         ))}
                       </div>
                     </div>
+
+                    {newAccount.account_type === "CREDIT" && (
+                      <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-xs font-medium text-slate-500">Параметры кредита</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                              Сумма
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={creditParams.principalAmount}
+                              onChange={(e) =>
+                                setCreditParams((p) => ({ ...p, principalAmount: e.target.value }))
+                              }
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                              Срок (мес.)
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={creditParams.termMonths}
+                              onChange={(e) =>
+                                setCreditParams((p) => ({ ...p, termMonths: e.target.value }))
+                              }
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          После открытия кредитного счёта кредит будет создан автоматически.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="flex gap-3 pt-4">
                       <Button
@@ -141,7 +246,12 @@ export default function AccountsPage() {
         {user?.accounts && user.accounts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {user.accounts.map((account) => (
-                  <AccountCard key={account.account_id} account={account} />
+                  <AccountCard
+                    key={account.account_id}
+                    account={account}
+                    nextPaymentDate={nextPaymentByCreditAccountId.get(account.account_id)}
+                    onClick={() => setSelectedAccount(account)}
+                  />
               ))}
             </div>
         ) : (
@@ -205,6 +315,16 @@ export default function AccountsPage() {
             </CardContent>
           </Card>
         </div>
+        <AccountQuickActionsModal
+          account={selectedAccount}
+          open={Boolean(selectedAccount)}
+          onClose={() => setSelectedAccount(null)}
+          nextPaymentDate={
+            selectedAccount
+              ? nextPaymentByCreditAccountId.get(selectedAccount.account_id)
+              : undefined
+          }
+        />
       </div>
   );
 }

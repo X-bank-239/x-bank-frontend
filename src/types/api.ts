@@ -17,6 +17,7 @@ export interface CreateUserRequest {
   email: string;
   birthdate: string; // ISO date-time
   password: string;
+  role?: UserRole;
 }
 
 export interface CreateBankAccountRequest {
@@ -39,6 +40,7 @@ export interface BankAccountResponse {
   balance: number;
   currency: Currency;
   account_type: AccountType;
+  active?: boolean;
 }
 
 export interface BankAccount {
@@ -47,7 +49,10 @@ export interface BankAccount {
   balance: number;
   currency: Currency;
   account_type: AccountType;
+  active?: boolean;
 }
+
+export type UserRole = "USER" | "ADMIN";
 
 export interface UserProfileResponse {
   user_id: string; // UUID
@@ -56,6 +61,10 @@ export interface UserProfileResponse {
   email: string;
   birthdate: string; // ISO date-time
   accounts: BankAccountResponse[];
+  role?: UserRole;
+  active?: boolean;
+  roles?: string[];
+  is_admin?: boolean;
 }
 
 export interface Transaction {
@@ -67,20 +76,22 @@ export interface Transaction {
   currency: Currency;
   transaction_date: string; // ISO date-time
   comment?: string;
+  status?: TransactionStatus;
 }
+
+export type TransactionStatus = "PENDING" | "COMPLETED" | "CANCELLED" | "FAILED";
 
 export interface TransactionResponse {
   transaction_type: TransactionType;
   sender_name?: string;
   receiver_name?: string;
-  // Optional: backend may return IDs even if OpenAPI doesn't list them.
-  // We use these for correct sign (+/-) when showing history for a specific account.
-  sender_id?: string; // UUID
-  receiver_id?: string; // UUID
+  sender_id?: string;
+  receiver_id?: string;
   amount: number;
   currency: Currency;
   transaction_date: string; // ISO date-time
   comment?: string;
+  status?: TransactionStatus;
 }
 
 export interface RecentTransactionsResponse {
@@ -90,10 +101,42 @@ export interface RecentTransactionsResponse {
   transactions: TransactionResponse[];
 }
 
+export interface CurrencyRate {
+  currency: Currency;
+  rate: number;
+  date: string;
+  createdAt: string;
+}
+
+export interface CreateLoanRequest {
+  creditAccountId: string;
+  principalAmount: number;
+  termMonths: number;
+}
+
+export interface LoanRepaymentRequest {
+  amount: number;
+}
+
+export type LoanStatus = "ACTIVE" | "CLOSED";
+
+export interface LoanResponse {
+  loanId: string;
+  creditAccountId: string;
+  serviceAccountId: string;
+  currency: Currency;
+  principalAmount: number;
+  annualInterestRate: number;
+  termMonths: number;
+  monthlyPayment: number;
+  outstandingPrincipal: number;
+  nextPaymentDate: string;
+  status: LoanStatus;
+}
+
 // Auth response (login returns a token)
 export interface AuthResponse {
   token: string;
-  user_id: string;
 }
 
 // API Error

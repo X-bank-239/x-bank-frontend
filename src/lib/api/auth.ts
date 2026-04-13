@@ -6,7 +6,15 @@ import type {
 } from "@/types";
 
 interface AuthResponse {
-  token: string;
+  token?: string;
+  access_token?: string;
+  accessToken?: string;
+}
+
+function pickToken(body: AuthResponse): string | null {
+  const raw = body.token ?? body.access_token ?? body.accessToken;
+  if (typeof raw !== "string") return null;
+  return raw.trim().replace(/^Bearer\s+/i, "").trim() || null;
 }
 
 export const authApi = {
@@ -21,12 +29,11 @@ export const authApi = {
       data
     );
 
-    const token = authResponse.token;
+    const token = pickToken(authResponse);
     if (!token) {
       throw new Error("Токен не получен от сервера");
     }
 
-    // Manually set token for the next request
     if (typeof window !== "undefined") {
       localStorage.setItem("auth_token", token);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { transactionsApi } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
@@ -20,8 +21,10 @@ type TabType = "history" | "transfer" | "deposit" | "payment";
 
 export default function TransactionsPage() {
   const { user, refreshUser } = useAuth();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>("history");
   const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
+  const [hasAppliedQuery, setHasAppliedQuery] = useState(false);
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [page, setPage] = useState(0);
@@ -41,6 +44,26 @@ export default function TransactionsPage() {
       setSelectedAccount(user.accounts[0]);
     }
   }, [user?.accounts, selectedAccount]);
+
+  useEffect(() => {
+    if (hasAppliedQuery || !user?.accounts || user.accounts.length === 0) return;
+
+    const accountId = searchParams.get("account");
+    const tab = searchParams.get("tab");
+
+    if (accountId) {
+      const accountFromQuery = user.accounts.find((account) => account.account_id === accountId);
+      if (accountFromQuery) {
+        setSelectedAccount(accountFromQuery);
+      }
+    }
+
+    if (tab && ["history", "transfer", "deposit", "payment"].includes(tab)) {
+      setActiveTab(tab as TabType);
+    }
+
+    setHasAppliedQuery(true);
+  }, [hasAppliedQuery, searchParams, user?.accounts]);
 
   const loadTransactions = useCallback(async () => {
     if (!selectedAccount) return;

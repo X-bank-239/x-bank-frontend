@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { isUserAdmin } from "@/lib/auth-roles";
+import { useMemo, useState } from "react";
 
-const navItems = [
+const baseNavItems = [
   { href: "/dashboard", label: "Главная" },
   { href: "/dashboard/accounts", label: "Вклады и счета" },
   { href: "/dashboard/transactions", label: "Платежи и переводы" },
@@ -18,6 +19,11 @@ export function TopNav() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const navItems = useMemo(() => {
+    if (!isUserAdmin(user)) return baseNavItems;
+    return [...baseNavItems, { href: "/dashboard/admin", label: "Админ" }];
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
