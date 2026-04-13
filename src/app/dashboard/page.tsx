@@ -1,12 +1,36 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { AccountCard } from "@/components/dashboard";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui";
+import { AccountCard, AccountQuickActionsModal } from "@/components/dashboard";
+import { Card, CardContent } from "@/components/ui";
 import Link from "next/link";
+import { loansApi } from "@/lib/api";
+import type { BankAccountResponse, LoanResponse } from "@/types";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
+  const [loans, setLoans] = useState<LoanResponse[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const data = await loansApi.list();
+        setLoans(data);
+      } catch {
+        // Не блокируем дашборд при недоступности кредитного списка.
+      }
+    })();
+  }, []);
+
+  const nextPaymentByCreditAccountId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const loan of loans) {
+      map.set(loan.creditAccountId, loan.nextPaymentDate);
+    }
+    return map;
+  }, [loans]);
 
   // const totalBalance = user?.accounts?.reduce((sum, acc) => {
   //   const rates: Record<string, number> = {
@@ -26,6 +50,7 @@ export default function DashboardPage() {
   // }).format(totalBalance);
 
   return (
+    <>
       <div className="space-y-8">
         {/* Быстрые действия — горизонтальный ряд как в Сбере */}
         <section>
@@ -92,7 +117,13 @@ export default function DashboardPage() {
           {user?.accounts && user.accounts.length > 0 ? (
               <div className="space-y-3">
                 {user.accounts.slice(0, 5).map((account) => (
-                    <AccountCard key={account.account_id} account={account} variant="minimal" />
+                  <AccountCard
+                    key={account.account_id}
+                    account={account}
+                    variant="minimal"
+                    nextPaymentDate={nextPaymentByCreditAccountId.get(account.account_id)}
+                    onClick={() => setSelectedAccount(account)}
+                  />
                 ))}
                 {user.accounts.length > 5 && (
                     <Link
@@ -131,5 +162,16 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
+      <AccountQuickActionsModal
+        account={selectedAccount}
+        open={Boolean(selectedAccount)}
+        onClose={() => setSelectedAccount(null)}
+        nextPaymentDate={
+          selectedAccount
+            ? nextPaymentByCreditAccountId.get(selectedAccount.account_id)
+            : undefined
+        }
+      />
+    </>
   );
 }

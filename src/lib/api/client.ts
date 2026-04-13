@@ -1,6 +1,19 @@
-const API_BASE_URL = "https://4c5450410f2f.vps.myjino.ru/api";
+const DEFAULT_API_BASE_URL = "https://4c5450410f2f.vps.myjino.ru/api";
 
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
 
+/** JWT без префикса Bearer (как в заголовке Authorization) */
+function normalizeStoredToken(raw: string | null): string | null {
+  if (!raw) return null;
+  const t = raw.trim().replace(/^Bearer\s+/i, "").trim();
+  return t || null;
+}
+
+const API_BASE_URL = normalizeBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL
+);
 
 class ApiClient {
   private baseUrl: string;
@@ -12,7 +25,7 @@ class ApiClient {
 
   private getToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("auth_token");
+    return normalizeStoredToken(localStorage.getItem("auth_token"));
   }
 
   private async request<T>(
@@ -30,20 +43,24 @@ class ApiClient {
       (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
     }
 
+    const method = (options.method ?? "GET").toUpperCase();
+    const isLoginAttempt = endpoint === "/user/login" && method === "POST";
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers,
     });
 
-    // Store headers for later access
     this.lastResponseHeaders = response.headers;
 
     if (!response.ok) {
-      let errorMessage : string;
+      let errorMessage: string;
       const errorText = await response.text();
       switch (response.status) {
-        case(401):
-          errorMessage = `Ошибка: неверный логин или пароль`;
+        case 401:
+          errorMessage = isLoginAttempt
+            ? "Ошибка: неверный логин или пароль"
+            : "Сессия истекла или токен недействителен. Войдите снова.";
           break;
         default:
           errorMessage = `Ошибка ${response.status}`;
@@ -57,8 +74,10 @@ class ApiClient {
           errorMessage = errorText;
         }
       }
-      
+
       console.error("Request Error:", {
+        endpoint,
+        method,
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries()),
@@ -67,12 +86,11 @@ class ApiClient {
       throw new Error(errorMessage);
     }
 
-    // Handle empty responses
     const text = await response.text();
     if (!text) {
       return {} as T;
     }
-    
+
     const data = JSON.parse(text);
 
     return data;
@@ -80,15 +98,12 @@ class ApiClient {
 
   getTokenFromHeaders(): string | null {
     if (!this.lastResponseHeaders) return null;
-    
-    // Try different header names
+
     const authHeader = this.lastResponseHeaders.get("Authorization");
     if (authHeader) {
-      // Remove "Bearer " prefix if present
-      // console.warn(authHeader);
-      return authHeader.replace("Bearer ", "");
+      return authHeader.replace(/^Bearer\s+/i, "").trim();
     }
-    
+
     return null;
   }
 
