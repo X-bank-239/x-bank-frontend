@@ -129,6 +129,10 @@ export interface LoanRepaymentRequest {
   amount: number;
 }
 
+export interface LoanPaymentAmountResponse {
+  amount: number;
+}
+
 export type LoanStatus = "ACTIVE" | "CLOSED";
 
 export interface LoanResponse {
