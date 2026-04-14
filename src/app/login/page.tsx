@@ -6,21 +6,48 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, verify2FA } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [tempToken, setTempToken] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const is2faStep = Boolean(tempToken);
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setInfo("");
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      const result = await login({ email, password });
+      if (result.tempToken) {
+        setTempToken(result.tempToken);
+        setInfo("Код подтверждения отправлен на вашу почту.");
+      }
+      setIsSubmitting(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка входа. Проверьте данные.");
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setIsSubmitting(true);
+    try {
+      await verify2FA({
+        temp_token: tempToken,
+        code: code.trim(),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка подтверждения 2FA.");
       setIsSubmitting(false);
     }
   };
@@ -44,7 +71,7 @@ export default function LoginPage() {
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-card p-8">
           <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">Вход в аккаунт</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-            Введите email и пароль
+            {is2faStep ? "Введите код из письма" : "Введите email и пароль"}
           </p>
 
           {error && (
@@ -52,46 +79,95 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                placeholder="example@email.com"
-                required
-              />
+          {info && (
+            <div className="mb-4 p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg text-teal-700 dark:text-teal-300 text-sm">
+              {info}
             </div>
+          )}
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Пароль
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+          {!is2faStep ? (
+            <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  placeholder="example@email.com"
+                  required
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white py-2.5 rounded-lg font-medium transition-colors"
-            >
-              {isSubmitting ? "Вход..." : "Войти"}
-            </button>
-          </form>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Пароль
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white py-2.5 rounded-lg font-medium transition-colors"
+              >
+                {isSubmitting ? "Проверка..." : "Продолжить"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifySubmit} className="space-y-4">
+              <div>
+                <label htmlFor="code" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Код подтверждения
+                </label>
+                <input
+                  type="text"
+                  id="code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  placeholder="Введите код из письма"
+                  required
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Почта: {email}
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white py-2.5 rounded-lg font-medium transition-colors"
+              >
+                {isSubmitting ? "Подтверждение..." : "Войти"}
+              </button>
+
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  setTempToken("");
+                  setCode("");
+                  setError("");
+                  setInfo("");
+                }}
+                className="w-full border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 py-2.5 rounded-lg font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Назад
+              </button>
+            </form>
+          )}
 
           <p className="mt-6 text-center text-slate-500 dark:text-slate-400 text-sm">
             Нет аккаунта?{" "}

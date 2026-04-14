@@ -11,6 +11,17 @@ export interface AuthUserRequest {
   password: string;
 }
 
+export interface LoginInitResponse {
+  requires2fa: boolean;
+  tempToken?: string;
+  email?: string;
+}
+
+export interface Verify2FARequest {
+  temp_token: string;
+  code: string;
+}
+
 export interface CreateUserRequest {
   first_name: string;
   last_name: string;
