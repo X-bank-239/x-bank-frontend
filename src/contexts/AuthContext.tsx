@@ -14,15 +14,13 @@ import type {
   UserProfileResponse,
   AuthUserRequest,
   CreateUserRequest,
-  Verify2FARequest,
 } from "@/types";
 
 interface AuthContextType {
   user: UserProfileResponse | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: AuthUserRequest) => Promise<{ tempToken?: string; email?: string; completed?: boolean }>;
-  verify2FA: (data: Verify2FARequest) => Promise<void>;
+  login: (data: AuthUserRequest) => Promise<void>;
   register: (data: CreateUserRequest) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -63,59 +61,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const response = await authApi.login(data);
+      
+      // Store token and user_id
+      localStorage.setItem("auth_token", response.token);
+      localStorage.setItem("user_id", response.user_id);
 
-      if (response.tempToken) {
-        return { tempToken: response.tempToken, email: response.email, completed: false };
-      }
-
-      // Fallback for environments where /user/login returns final JWT directly.
-      if (response.token) {
-        localStorage.setItem("auth_token", response.token);
-        const profile = await authApi.getMe();
-        setUser(profile);
-        localStorage.setItem("user_id", profile.user_id);
-        router.push("/dashboard");
-        return { completed: true, email: response.email };
-      }
-
-      throw new Error(
-        "Сервер не вернул ни временный токен 2FA, ни итоговый JWT. Проверьте /user/login."
-      );
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const verify2FA = async (data: Verify2FARequest) => {
-    setIsLoading(true);
-    try {
-      const { token } = await authApi.verify2FA(data);
-      localStorage.setItem("auth_token", token);
-
+      // Fetch user profile
       const profile = await authApi.getMe();
       setUser(profile);
-      localStorage.setItem("user_id", profile.user_id);
+      setIsLoading(false);
+      
       router.push("/dashboard");
     } catch (error) {
-      console.error("2FA verification error:", error);
-      throw error;
-    } finally {
+      console.error("Login error:", error);
       setIsLoading(false);
+      throw error;
     }
   };
 
   const register = async (data: CreateUserRequest) => {
     setIsLoading(true);
     try {
+      // Register user
       await authApi.register(data);
-      router.push("/login");
+      
+      // Auto-login after registration
+      await login({ email: data.email, password: data.password });
     } catch (error) {
-      throw error;
-    } finally {
       setIsLoading(false);
+      throw error;
     }
   };
 
@@ -141,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
-        verify2FA,
         register,
         logout,
         refreshUser,
