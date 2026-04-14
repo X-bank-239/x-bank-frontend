@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AdminRoute } from "@/components/AdminRoute";
 import { adminApi } from "@/lib/api";
 import type { BankAccountResponse, TransactionResponse, UserProfileResponse } from "@/types";
-import { LOCAL_OPENAPI_SPEC_URL, OPENAPI_SPEC_URL, SWAGGER_UI_URL } from "@/lib/swagger";
+import { OPENAPI_SPEC_URL, SWAGGER_UI_URL } from "@/lib/swagger";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
 
@@ -79,14 +79,6 @@ export default function AdminPage() {
               className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
             >
               OpenAPI JSON
-            </a>
-            <a
-              href={LOCAL_OPENAPI_SPEC_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
-            >
-              OpenAPI JSON (local)
             </a>
           </CardContent>
         </Card>
