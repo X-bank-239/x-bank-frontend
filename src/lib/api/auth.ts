@@ -2,6 +2,7 @@ import { apiClient } from "./client";
 import type {
   AuthUserRequest,
   CreateUserRequest,
+  Verify2FARequest,
   UserProfileResponse,
 } from "@/types";
 
@@ -9,6 +10,10 @@ interface AuthResponse {
   token?: string;
   access_token?: string;
   accessToken?: string;
+  tempToken?: string;
+  temp_token?: string;
+  email?: string;
+  user_id?: string;
 }
 
 function pickToken(body: AuthResponse): string | null {
@@ -23,30 +28,35 @@ export const authApi = {
    */
   async login(
     data: AuthUserRequest
-  ): Promise<{ token: string; user_id: string }> {
+  ): Promise<{ token?: string; tempToken?: string; email?: string; user_id?: string }> {
     const authResponse = await apiClient.post<AuthResponse>(
       "/user/login",
       data
     );
+
+    const tempToken = authResponse.tempToken ?? authResponse.temp_token;
+    if (typeof tempToken === "string" && tempToken.trim()) {
+      return {
+        tempToken: tempToken.trim(),
+        email: authResponse.email,
+      };
+    }
 
     const token = pickToken(authResponse);
     if (!token) {
       throw new Error("Токен не получен от сервера");
     }
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", token);
+    return { token, email: authResponse.email, user_id: authResponse.user_id };
+  },
+
+  async verify2FA(data: Verify2FARequest): Promise<{ token: string }> {
+    const authResponse = await apiClient.post<AuthResponse>("/user/verify-2fa", data);
+    const token = pickToken(authResponse);
+    if (!token) {
+      throw new Error("Токен не получен после подтверждения 2FA");
     }
-
-    // After login, get profile by email to get user_id
-    // OpenAPI: GET /user/me возвращает профиль текущего пользователя по bearer-токену.
-    const userProfile = await this.getMe();
-
-    if (!userProfile.user_id) {
-      throw new Error("ID пользователя не получен от сервера");
-    }
-
-    return { token, user_id: userProfile.user_id };
+    return { token };
   },
 
   /**

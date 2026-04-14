@@ -11,6 +11,11 @@ export interface AuthUserRequest {
   password: string;
 }
 
+export interface Verify2FARequest {
+  tempToken: string;
+  code: string;
+}
+
 export interface CreateUserRequest {
   first_name: string;
   last_name: string;
