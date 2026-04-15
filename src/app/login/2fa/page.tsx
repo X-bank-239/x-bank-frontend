@@ -71,7 +71,7 @@ export default function TwoFAPage() {
         return;
       }
 
-      await verify2FA({ tempToken, code });
+      await verify2FA({ temp_token: tempToken, code });
       localStorage.removeItem("auth_temp_token");
       localStorage.removeItem("auth_temp_email");
     } catch (err) {
@@ -121,7 +121,7 @@ export default function TwoFAPage() {
                 autoComplete="one-time-code"
                 id="code"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.replace(/\s+/g, ""))}
                 className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
                 placeholder="123456"
                 required

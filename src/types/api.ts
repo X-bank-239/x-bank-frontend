@@ -12,7 +12,7 @@ export interface AuthUserRequest {
 }
 
 export interface Verify2FARequest {
-  tempToken: string;
+  temp_token: string;
   code: string;
 }
 
