@@ -12,6 +12,7 @@ interface AuthResponse {
   accessToken?: string;
   tempToken?: string;
   temp_token?: string;
+  requires2fa?: boolean;
   email?: string;
   user_id?: string;
 }
@@ -22,13 +23,21 @@ function pickToken(body: AuthResponse): string | null {
   return raw.trim().replace(/^Bearer\s+/i, "").trim() || null;
 }
 
+function pickTokenFromBodyOrHeaders(body: AuthResponse): string | null {
+  const fromBody = pickToken(body);
+  if (fromBody) return fromBody;
+  const fromHeaders = apiClient.getTokenFromHeaders();
+  if (!fromHeaders) return null;
+  return fromHeaders.trim().replace(/^Bearer\s+/i, "").trim() || null;
+}
+
 export const authApi = {
   /**
    * Login user with email and password
    */
   async login(
     data: AuthUserRequest
-  ): Promise<{ token?: string; tempToken?: string; email?: string; user_id?: string }> {
+  ): Promise<{ token?: string; tempToken?: string; requires2fa?: boolean; email?: string; user_id?: string }> {
     const authResponse = await apiClient.post<AuthResponse>(
       "/user/login",
       data
@@ -38,11 +47,12 @@ export const authApi = {
     if (typeof tempToken === "string" && tempToken.trim()) {
       return {
         tempToken: tempToken.trim(),
+        requires2fa: authResponse.requires2fa ?? true,
         email: authResponse.email,
       };
     }
 
-    const token = pickToken(authResponse);
+    const token = pickTokenFromBodyOrHeaders(authResponse);
     if (!token) {
       throw new Error("Токен не получен от сервера");
     }
@@ -51,12 +61,35 @@ export const authApi = {
   },
 
   async verify2FA(data: Verify2FARequest): Promise<{ token: string }> {
-    const authResponse = await apiClient.post<AuthResponse>("/user/verify-2fa", data);
-    const token = pickToken(authResponse);
-    if (!token) {
-      throw new Error("Токен не получен после подтверждения 2FA");
+    const normalizedCode = data.code.trim();
+    const previousAuthToken =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
+    if (typeof window !== "undefined") {
+      // Во время verify нужно авторизоваться временным 2FA-токеном.
+      localStorage.removeItem("auth_token");
     }
-    return { token };
+
+    try {
+      const authResponse = await apiClient.post<AuthResponse>(
+        "/user/login/2fa",
+        { temp_token: data.temp_token, code: normalizedCode },
+        {
+          headers: {
+            Authorization: `Bearer ${data.temp_token}`,
+          },
+        }
+      );
+      const token = pickTokenFromBodyOrHeaders(authResponse);
+      if (!token) {
+        throw new Error("Токен не получен после подтверждения 2FA");
+      }
+      return { token };
+    } finally {
+      if (typeof window !== "undefined" && previousAuthToken) {
+        localStorage.setItem("auth_token", previousAuthToken);
+      }
+    }
   },
 
   /**
