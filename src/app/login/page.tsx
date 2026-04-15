@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,7 +20,14 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      const result = await login({ email, password });
+
+      if (result?.tempToken) {
+        localStorage.setItem("auth_temp_token", result.tempToken);
+        if (result.email) localStorage.setItem("auth_temp_email", result.email);
+        router.push("/login/2fa");
+        return;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка входа. Проверьте данные.");
       setIsSubmitting(false);
