@@ -117,6 +117,7 @@ export default function TwoFAPage() {
                 Код
               </label>
               <input
+                type="password"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 id="code"

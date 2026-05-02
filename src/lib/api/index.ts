@@ -5,3 +5,5 @@ export { transactionsApi } from "./transactions";
 export { loansApi } from "./loans";
 export { adminApi } from "./admin";
 export { cbrApi } from "./cbr";
+export { categoriesApi } from "./categories";
+export { keywordsApi } from "./keywords";

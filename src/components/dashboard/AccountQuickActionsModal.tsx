@@ -15,6 +15,7 @@ interface AccountQuickActionsModalProps {
   open: boolean;
   onClose: () => void;
   nextPaymentDate?: string;
+  annualInterestRate?: number;
 }
 
 export function AccountQuickActionsModal({
@@ -22,6 +23,7 @@ export function AccountQuickActionsModal({
   open,
   onClose,
   nextPaymentDate,
+  annualInterestRate,
 }: AccountQuickActionsModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -58,6 +60,11 @@ export function AccountQuickActionsModal({
               {account.account_type === "CREDIT" && nextPaymentDate && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   След. платеж: {nextPaymentDate}
+                </p>
+              )}
+              {account.account_type === "CREDIT" && typeof annualInterestRate === "number" && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
                 </p>
               )}
             </div>

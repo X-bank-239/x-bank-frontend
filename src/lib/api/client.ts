@@ -46,10 +46,18 @@ class ApiClient {
     const method = (options.method ?? "GET").toUpperCase();
     const isLoginAttempt = endpoint === "/user/login" && method === "POST";
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (e) {
+      console.error("Network Error:", { endpoint, method, error: e });
+      throw new Error(
+        "Не удалось подключиться к серверу. Проверьте интернет или попробуйте позже."
+      );
+    }
 
     this.lastResponseHeaders = response.headers;
 
@@ -62,16 +70,41 @@ class ApiClient {
             ? "Ошибка: неверный логин или пароль"
             : "Сессия истекла или токен недействителен. Войдите снова.";
           break;
+        case 400:
+          errorMessage = "Некорректный запрос. Проверьте введённые данные.";
+          break;
+        case 403:
+          errorMessage = "Недостаточно прав для выполнения операции.";
+          break;
+        case 404:
+          errorMessage = "Ресурс не найден.";
+          break;
+        case 409:
+          errorMessage = "Конфликт данных. Обновите страницу и попробуйте снова.";
+          break;
+        case 429:
+          errorMessage = "Слишком много запросов. Подождите и повторите попытку.";
+          break;
         default:
-          errorMessage = `Ошибка ${response.status}`;
+          errorMessage =
+            response.status >= 500
+              ? "Ошибка сервера. Попробуйте позже."
+              : `Ошибка ${response.status}`;
       }
 
       try {
         const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.message || errorMessage;
+        // Если бэкенд присылает русское сообщение — показываем его.
+        if (typeof errorJson?.message === "string" && errorJson.message.trim()) {
+          errorMessage = errorJson.message;
+        }
       } catch {
         if (errorText) {
-          errorMessage = errorText;
+          // Иногда сервер присылает plain-text ответ. Не показываем HTML/технический мусор.
+          const cleaned = errorText.trim();
+          if (cleaned && !cleaned.startsWith("<!doctype") && !cleaned.startsWith("<html")) {
+            errorMessage = cleaned;
+          }
         }
       }
 
@@ -128,6 +161,13 @@ class ApiClient {
 
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: "DELETE" });
+  }
+
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    });
   }
 }
 

@@ -1,9 +1,24 @@
+ "use client";
+
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const isAuthed = useMemo(() => Boolean(user), [user]);
+
+  useEffect(() => {
+    // Если пользователь уже авторизован — показываем быстрый вход в кабинет.
+    // Не редиректим принудительно, чтобы можно было видеть лендинг.
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#f5f5f5] dark:bg-slate-950">
+    <div className="min-h-screen flex flex-col bg-[#f5f5f5] dark:bg-slate-950">
       {/* Шапка как в Сбербанк Онлайн: логотип, вход, открыть счёт */}
       <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-6xl">
@@ -15,23 +30,44 @@ export default function Home() {
           </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link
-              href="/login"
-              className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium text-sm transition-colors"
-            >
-              Войти
-            </Link>
-            <Link
-              href="/register"
-              className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
-            >
-              Открыть счёт
-            </Link>
+            {isAuthed ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
+                >
+                  В кабинет
+                </button>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium text-sm transition-colors"
+                >
+                  Выйти
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium text-sm transition-colors"
+                >
+                  Войти
+                </Link>
+                <Link
+                  href="/register"
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
+                >
+                  Открыть счёт
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 pt-12 pb-20 max-w-6xl">
+      <main className="flex-1 container mx-auto px-4 pt-12 pb-20 max-w-6xl">
         {/* Главный экран — как в Сбербанк: один акцент, два действия */}
         <div className="max-w-2xl mx-auto text-center pt-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
@@ -41,18 +77,29 @@ export default function Home() {
             Переводы, платежи и счета в одном приложении.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/login"
-              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors shadow-sm"
-            >
-              Войти
-            </Link>
-            <Link
-              href="/register"
-              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 px-6 py-3 rounded-lg font-semibold text-sm transition-colors border border-slate-200 dark:border-slate-700"
-            >
-              Открыть счёт
-            </Link>
+            {isAuthed ? (
+              <Link
+                href="/dashboard"
+                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors shadow-sm"
+              >
+                Перейти в кабинет
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                >
+                  Войти
+                </Link>
+                <Link
+                  href="/register"
+                  className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 px-6 py-3 rounded-lg font-semibold text-sm transition-colors border border-slate-200 dark:border-slate-700"
+                >
+                  Открыть счёт
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

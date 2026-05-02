@@ -147,7 +147,8 @@ export function CreditLoanPanel() {
                       termMonths: Number(termMonths),
                     });
                     setLoan(created);
-                    setMessage(`Кредит создан. Loan ID: ${created.loanId}`);
+                    const ratePct = Math.round(created.annualInterestRate * 10000) / 100;
+                    setMessage(`Кредит создан. Ставка: ${ratePct}%. ID кредита: ${created.loanId}`);
                     await refreshUser();
                   })
                 }
@@ -188,7 +189,7 @@ export function CreditLoanPanel() {
               <p className="font-medium text-slate-800 dark:text-slate-100">Текущие данные</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-600 dark:text-slate-300">
                 <div>
-                  <span className="text-slate-500 dark:text-slate-400">Loan ID:</span>{" "}
+                  <span className="text-slate-500 dark:text-slate-400">ID кредита:</span>{" "}
                   <span className="font-mono text-xs break-all">{loan.loanId}</span>
                 </div>
                 <div>

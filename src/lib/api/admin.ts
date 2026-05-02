@@ -17,6 +17,14 @@ export const adminApi = {
     return apiClient.delete<void>(`/user/${userId}`);
   },
 
+  /**
+   * OpenAPI: POST /user/{userId}/unblock
+   */
+  unblockUser(userId: string): Promise<void> {
+    // Некоторые реализации на бэкенде требуют JSON body даже для "пустых" POST.
+    return apiClient.post<void>(`/user/${userId}/unblock`, {});
+  },
+
   getUserProfile(userId: string): Promise<UserProfileResponse> {
     return apiClient.get<UserProfileResponse>(`/user/${userId}`);
   },
@@ -28,6 +36,21 @@ export const adminApi = {
 
   getBankAccount(accountId: string): Promise<BankAccountResponse> {
     return apiClient.get<BankAccountResponse>(`/bank-account/${accountId}`);
+  },
+
+  /**
+   * OpenAPI: POST /bank-account/{accountId}/unblock
+   */
+  reactivateAccount(accountId: string): Promise<void> {
+    // Некоторые реализации на бэкенде требуют JSON body даже для "пустых" POST.
+    return apiClient.post<void>(`/bank-account/${accountId}/unblock`, {});
+  },
+
+  /**
+   * OpenAPI: DELETE /bank-account/{accountId}
+   */
+  deactivateAccount(accountId: string): Promise<void> {
+    return apiClient.delete<void>(`/bank-account/${accountId}`);
   },
 
   /** OpenAPI: один объект; на практике иногда приходит массив. */
