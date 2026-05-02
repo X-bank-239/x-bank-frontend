@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 interface AccountCardProps {
   account: BankAccountResponse;
   nextPaymentDate?: string;
+  annualInterestRate?: number;
   onClick?: () => void;
   /** Вариант: карточка с градиентом (как карта) или минималистичная как в Сбере */
   variant?: "gradient" | "minimal";
@@ -33,10 +34,39 @@ function isAccountInactive(account: BankAccountResponse): boolean {
   return false;
 }
 
-export function AccountCard({ account, nextPaymentDate, onClick, variant = "gradient" }: AccountCardProps) {
+export function AccountCard({
+  account,
+  nextPaymentDate,
+  annualInterestRate,
+  onClick,
+  variant = "gradient",
+}: AccountCardProps) {
   const gradient = getAccountCardGradient(account.currency);
   const accentBar = getAccountCardAccent(account.currency);
   const inactive = isAccountInactive(account);
+  const canCopy = typeof window !== "undefined" && typeof navigator !== "undefined";
+
+  const copyAccountId = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      if (canCopy && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(account.account_id);
+      } else {
+        window.prompt("Скопируйте ID счёта:", account.account_id);
+      }
+    } catch {
+      window.prompt("Скопируйте ID счёта:", account.account_id);
+    }
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick();
+    }
+  };
 
   if (variant === "minimal") {
     const minimalCardClasses = cn(
@@ -58,12 +88,28 @@ export function AccountCard({ account, nextPaymentDate, onClick, variant = "grad
               <p className="text-sm font-medium text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {getAccountTypeName(account.account_type)} • {account.currency}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                {account.account_id}
-              </p>
+              <div className="mt-0.5 flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono break-all sm:truncate">
+                  {account.account_id}
+                </p>
+                <button
+                  type="button"
+                  onClick={copyAccountId}
+                  className="w-fit shrink-0 rounded-md border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 px-2 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  aria-label="Скопировать ID счёта"
+                  title="Скопировать ID счёта"
+                >
+                  Копировать
+                </button>
+              </div>
               {account.account_type === "CREDIT" && nextPaymentDate && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   След. платеж: {nextPaymentDate}
+                </p>
+              )}
+              {account.account_type === "CREDIT" && typeof annualInterestRate === "number" && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
                 </p>
               )}
             </div>
@@ -77,13 +123,15 @@ export function AccountCard({ account, nextPaymentDate, onClick, variant = "grad
 
     if (onClick) {
       return (
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={onClick}
+          onKeyDown={handleCardKeyDown}
           className={cn(minimalCardClasses, "w-full text-left")}
         >
           {minimalCardContent}
-        </button>
+        </div>
       );
     }
 
@@ -129,12 +177,28 @@ export function AccountCard({ account, nextPaymentDate, onClick, variant = "grad
             {formatCurrency(account.balance, account.currency)}
           </p>
 
-          <p className="text-white/70 text-sm font-mono">
-            {account.account_id}
-          </p>
+          <div className="text-white/70 text-sm font-mono min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+              <span className="break-all sm:truncate min-w-0">{account.account_id}</span>
+              <button
+                type="button"
+                onClick={copyAccountId}
+                className="w-fit shrink-0 rounded-md bg-white/15 hover:bg-white/25 px-2 py-1 text-[11px] font-semibold text-white/95"
+                aria-label="Скопировать ID счёта"
+                title="Скопировать ID счёта"
+              >
+                Копировать
+              </button>
+            </div>
+          </div>
           {account.account_type === "CREDIT" && nextPaymentDate && (
             <p className="text-white/80 text-xs mt-1">
               След. платеж: {nextPaymentDate}
+            </p>
+          )}
+          {account.account_type === "CREDIT" && typeof annualInterestRate === "number" && (
+            <p className="text-white/80 text-xs mt-1">
+              Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
             </p>
           )}
         </div>

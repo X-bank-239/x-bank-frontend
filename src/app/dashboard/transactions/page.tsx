@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { transactionsApi } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
 import {
+  Currency,
   TransactionType,
   TransactionResponse,
   BankAccountResponse,
@@ -18,6 +19,36 @@ import {
 } from "@/lib/utils";
 
 type TabType = "history" | "transfer" | "deposit" | "payment";
+type SpendingBar = { label: string; amount: number; percent: number };
+
+function getOptionalNumber(
+  tx: TransactionResponse,
+  keys: string[]
+): number | undefined {
+  const data = tx as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function getOptionalCurrency(
+  tx: TransactionResponse,
+  keys: string[]
+): Currency | undefined {
+  const supported: Currency[] = ["RUB", "USD", "EUR", "CNY"];
+  const data = tx as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "string" && supported.includes(value as Currency)) {
+      return value as Currency;
+    }
+  }
+  return undefined;
+}
 
 export default function TransactionsPage() {
   const { user, refreshUser } = useAuth();
@@ -37,6 +68,60 @@ export default function TransactionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const spendingChartData: SpendingBar[] = selectedAccount
+    ? (() => {
+        const outgoing = transactions.filter((tx) => {
+          if (tx.transaction_type === "PAYMENT") return true;
+          if (tx.transaction_type !== "TRANSFER") return false;
+          return tx.sender_id === selectedAccount.account_id;
+        });
+
+        const byDay = outgoing.reduce<Record<string, number>>((acc, tx) => {
+          const date = tx.transaction_date.slice(0, 10);
+          acc[date] = (acc[date] ?? 0) + tx.amount;
+          return acc;
+        }, {});
+
+        const sorted = Object.entries(byDay)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .slice(-7);
+
+        const maxAmount = sorted.reduce((max, [, value]) => Math.max(max, value), 0);
+
+        return sorted.map(([date, value]) => ({
+          label: formatShortDate(date),
+          amount: value,
+          percent: maxAmount > 0 ? (value / maxAmount) * 100 : 0,
+        }));
+      })()
+    : [];
+
+  const pieColors = [
+    "#0ea5e9",
+    "#14b8a6",
+    "#8b5cf6",
+    "#f59e0b",
+    "#ef4444",
+    "#22c55e",
+    "#6366f1",
+  ];
+
+  const spendingTotal = spendingChartData.reduce((sum, item) => sum + item.amount, 0);
+  const pieChartBackground =
+    spendingChartData.length > 0 && spendingTotal > 0
+      ? (() => {
+          let offset = 0;
+          const parts = spendingChartData.map((item, index) => {
+            const from = offset;
+            const slice = (item.amount / spendingTotal) * 100;
+            offset += slice;
+            const color = pieColors[index % pieColors.length];
+            return `${color} ${from}% ${offset}%`;
+          });
+          return `conic-gradient(${parts.join(", ")})`;
+        })()
+      : "conic-gradient(#e2e8f0 0% 100%)";
 
   // Set first account as selected by default
   useEffect(() => {
@@ -264,8 +349,99 @@ export default function TransactionsPage() {
                   </div>
                 ) : transactions.length > 0 ? (
                   <>
+                    <div className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 mb-3">
+                        Диаграмма трат (последние 7 дней)
+                      </p>
+                      {spendingChartData.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 items-center">
+                          <div className="flex items-center justify-center">
+                            <div
+                              className="relative h-44 w-44 rounded-full"
+                              style={{ background: pieChartBackground }}
+                              aria-label="Круговая диаграмма трат"
+                            >
+                              <div className="absolute inset-7 rounded-full bg-white dark:bg-slate-900" />
+                              <div className="absolute inset-0 flex items-center justify-center text-center">
+                                <div>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Всего</p>
+                                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                    {formatCurrency(spendingTotal, selectedAccount.currency)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {spendingChartData.map((item, index) => (
+                              <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: pieColors[index % pieColors.length] }}
+                                  />
+                                  <span className="text-slate-600 dark:text-slate-300 truncate">{item.label}</span>
+                                </div>
+                                <span className="text-slate-700 dark:text-slate-200 font-medium">
+                                  {formatCurrency(item.amount, selectedAccount.currency)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          Недостаточно данных по расходам для построения диаграммы.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="space-y-3">
-                      {transactions.map((tx, index) => (
+                      {transactions.map((tx, index) => {
+                        const conversionFromAmount = getOptionalNumber(tx, [
+                          "source_amount",
+                          "sourceAmount",
+                          "sender_amount",
+                          "senderAmount",
+                          "original_amount",
+                          "originalAmount",
+                        ]);
+                        const conversionFromCurrency =
+                          getOptionalCurrency(tx, [
+                            "source_currency",
+                            "sourceCurrency",
+                            "sender_currency",
+                            "senderCurrency",
+                            "original_currency",
+                            "originalCurrency",
+                          ]) ?? tx.currency;
+
+                        const conversionToAmount = getOptionalNumber(tx, [
+                          "target_amount",
+                          "targetAmount",
+                          "receiver_amount",
+                          "receiverAmount",
+                          "converted_amount",
+                          "convertedAmount",
+                        ]);
+                        const conversionToCurrency =
+                          getOptionalCurrency(tx, [
+                            "target_currency",
+                            "targetCurrency",
+                            "receiver_currency",
+                            "receiverCurrency",
+                            "converted_currency",
+                            "convertedCurrency",
+                          ]) ??
+                          (conversionToAmount ? undefined : tx.currency);
+
+                        const hasConversionInfo =
+                          tx.transaction_type === "TRANSFER" &&
+                          typeof conversionFromAmount === "number" &&
+                          typeof conversionToAmount === "number" &&
+                          conversionFromCurrency !== conversionToCurrency;
+
+                        return (
                           <div key={`${tx.transaction_date}-${index}`} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
                             <div className="flex items-center gap-4 mb-3 sm:mb-0">
                               <div
@@ -304,6 +480,17 @@ export default function TransactionsPage() {
                                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                                   {formatShortDate(tx.transaction_date)}
                                 </p>
+                                {typeof tx.commission === "number" && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                    Комиссия: {formatCurrency(tx.commission, tx.currency)}
+                                  </p>
+                                )}
+                                {hasConversionInfo && conversionToCurrency && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                    Конвертация: {formatCurrency(conversionFromAmount, conversionFromCurrency)} {"->"}{" "}
+                                    {formatCurrency(conversionToAmount, conversionToCurrency)}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <p
@@ -331,7 +518,8 @@ export default function TransactionsPage() {
                               {formatCurrency(tx.amount, tx.currency)}
                             </p>
                           </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Pagination */}

@@ -18,6 +18,7 @@ export default function AccountsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [createdLoanId, setCreatedLoanId] = useState("");
+  const [createdLoanAnnualRate, setCreatedLoanAnnualRate] = useState<number | null>(null);
   const [newAccount, setNewAccount] = useState<{
     currency: Currency;
     account_type: AccountType;
@@ -51,15 +52,25 @@ export default function AccountsPage() {
     return map;
   }, [loans]);
 
+  const annualRateByCreditAccountId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const loan of loans) {
+      map.set(loan.creditAccountId, loan.annualInterestRate);
+    }
+    return map;
+  }, [loans]);
+
   const handleCreateAccount = async () => {
     setIsLoading(true);
     setError("");
     setCreatedLoanId("");
+    setCreatedLoanAnnualRate(null);
 
     try {
+      const isCreditCreation = newAccount.account_type === "CREDIT";
       const createdAccount = await accountsApi.create(newAccount);
 
-      if (newAccount.account_type === "CREDIT") {
+      if (isCreditCreation) {
         const principalAmount = Number(creditParams.principalAmount);
         const termMonths = Number(creditParams.termMonths);
         if (!(principalAmount > 0) || !(termMonths > 0)) {
@@ -72,11 +83,17 @@ export default function AccountsPage() {
         });
         setLoans((prev) => [loan, ...prev.filter((x) => x.loanId !== loan.loanId)]);
         setCreatedLoanId(loan.loanId);
+        setCreatedLoanAnnualRate(loan.annualInterestRate);
       }
 
       await refreshUser();
-      setIsCreating(false);
-      setNewAccount({ currency: "RUB", account_type: "DEBIT" });
+      if (isCreditCreation) {
+        // Оставляем модалку открытой, чтобы пользователь сразу увидел ставку.
+        setNewAccount((prev) => ({ ...prev, currency: createdAccount.currency }));
+      } else {
+        setIsCreating(false);
+        setNewAccount({ currency: "RUB", account_type: "DEBIT" });
+      }
       setCreditParams({ principalAmount: "100000", termMonths: "12" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка создания счёта");
@@ -114,10 +131,15 @@ export default function AccountsPage() {
                   )}
                   {createdLoanId && (
                     <div className="mb-4 p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg text-teal-800 dark:text-teal-300 text-sm">
-                      Кредит оформлен. Loan ID:{" "}
+                      Кредит оформлен. ID кредита:{" "}
                       <code className="text-xs bg-white/60 dark:bg-slate-900/30 px-1 rounded">
                         {createdLoanId}
                       </code>
+                      {typeof createdLoanAnnualRate === "number" && (
+                        <>
+                          {" "}• Ставка: {Math.round(createdLoanAnnualRate * 10000) / 100}% годовых
+                        </>
+                      )}
                       . Управление — в разделе{" "}
                       <Link
                         href="/dashboard/loans"
@@ -167,6 +189,7 @@ export default function AccountsPage() {
                                 onClick={() => {
                                   setNewAccount((prev) => ({ ...prev, account_type: type }));
                                   setCreatedLoanId("");
+                                  setCreatedLoanAnnualRate(null);
                                 }}
                                 className={`px-4 py-3 rounded-lg border-2 font-medium transition-all text-sm ${
                                     newAccount.account_type === type
@@ -218,6 +241,12 @@ export default function AccountsPage() {
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           После открытия кредитного счёта кредит будет создан автоматически.
                         </p>
+                        {typeof createdLoanAnnualRate === "number" && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Процентная ставка по последнему оформленному кредиту:{" "}
+                            {Math.round(createdLoanAnnualRate * 10000) / 100}% годовых.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -250,6 +279,7 @@ export default function AccountsPage() {
                     key={account.account_id}
                     account={account}
                     nextPaymentDate={nextPaymentByCreditAccountId.get(account.account_id)}
+                    annualInterestRate={annualRateByCreditAccountId.get(account.account_id)}
                     onClick={() => setSelectedAccount(account)}
                   />
               ))}
@@ -322,6 +352,11 @@ export default function AccountsPage() {
           nextPaymentDate={
             selectedAccount
               ? nextPaymentByCreditAccountId.get(selectedAccount.account_id)
+              : undefined
+          }
+          annualInterestRate={
+            selectedAccount
+              ? annualRateByCreditAccountId.get(selectedAccount.account_id)
               : undefined
           }
         />

@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminRoute } from "@/components/AdminRoute";
-import { adminApi } from "@/lib/api";
-import type { BankAccountResponse, TransactionResponse, UserProfileResponse } from "@/types";
+import { adminApi, cbrApi, categoriesApi, keywordsApi } from "@/lib/api";
+import type {
+  BankAccountResponse,
+  Currency,
+  CurrencyRate,
+  TransactionCategory,
+  TransactionKeyword,
+  TransactionResponse,
+  UserProfileResponse,
+} from "@/types";
 import { OPENAPI_SPEC_URL, SWAGGER_UI_URL } from "@/lib/swagger";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
@@ -30,6 +38,44 @@ function AdminSection({
   );
 }
 
+function formatBirthdate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+function ActiveBadge({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`px-2 py-1 rounded-md text-[11px] font-medium border ${
+        active
+          ? "border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/30"
+          : "border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30"
+      }`}
+    >
+      {active ? "Активен" : "Заблокирован"}
+    </span>
+  );
+}
+
 function UserProfileCard({ profile }: { profile: UserProfileResponse }) {
   const fullName = `${profile.first_name} ${profile.last_name}`.trim();
   const role = profile.role ?? (profile.is_admin ? "ADMIN" : "USER");
@@ -48,15 +94,7 @@ function UserProfileCard({ profile }: { profile: UserProfileResponse }) {
           <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30">
             {role}
           </span>
-          <span
-            className={`px-2 py-1 rounded-md text-[11px] font-medium border ${
-              isActive
-                ? "border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/30"
-                : "border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30"
-            }`}
-          >
-            {isActive ? "Активен" : "Заблокирован"}
-          </span>
+          <ActiveBadge active={isActive} />
         </div>
       </div>
 
@@ -67,9 +105,85 @@ function UserProfileCard({ profile }: { profile: UserProfileResponse }) {
         </div>
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
           <p className="text-slate-500 dark:text-slate-400">Дата рождения</p>
-          <p className="text-slate-800 dark:text-slate-100 break-all">{profile.birthdate}</p>
+          <p className="text-slate-800 dark:text-slate-100 break-all">
+            {formatBirthdate(profile.birthdate)}
+          </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AccountCardAdmin({ account }: { account: BankAccountResponse }) {
+  const isActive = account.active !== false;
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {account.account_type} · {account.currency}
+          </p>
+          <p className="mt-1 font-mono text-xs text-slate-500 dark:text-slate-400 break-all">
+            {account.account_id}
+          </p>
+        </div>
+        <ActiveBadge active={isActive} />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-slate-500 dark:text-slate-400">Баланс</p>
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          {formatCurrency(account.balance, account.currency)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TransactionCardAdmin({ tx }: { tx: TransactionResponse }) {
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {tx.transaction_type} · {formatCurrency(tx.amount, tx.currency)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Дата: {formatDateTime(tx.transaction_date)}
+          </p>
+        </div>
+        {tx.status && (
+          <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800">
+            {tx.status}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-2">
+          <p className="text-slate-500 dark:text-slate-400">Отправитель</p>
+          <p className="text-slate-800 dark:text-slate-100 break-all">
+            {tx.sender_name ?? tx.sender_id ?? "—"}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-2">
+          <p className="text-slate-500 dark:text-slate-400">Получатель</p>
+          <p className="text-slate-800 dark:text-slate-100 break-all">
+            {tx.receiver_name ?? tx.receiver_id ?? "—"}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-2">
+          <p className="text-slate-500 dark:text-slate-400">Категория</p>
+          <p className="text-slate-800 dark:text-slate-100 break-all">{tx.category ?? "—"}</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-2">
+          <p className="text-slate-500 dark:text-slate-400">Комментарий</p>
+          <p className="text-slate-800 dark:text-slate-100 break-all">{tx.comment ?? "—"}</p>
+        </div>
+      </div>
+      {typeof tx.commission === "number" && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Комиссия: {formatCurrency(tx.commission, tx.currency)}
+        </p>
+      )}
     </div>
   );
 }
@@ -90,6 +204,25 @@ export default function AdminPage() {
   const [txId, setTxId] = useState("");
   const [tx, setTx] = useState<TransactionResponse | null>(null);
 
+  // Categories
+  const [categories, setCategories] = useState<TransactionCategory[] | null>(null);
+  const [catCode, setCatCode] = useState("");
+  const [catName, setCatName] = useState("");
+  const [catColor, setCatColor] = useState("#0d9488");
+
+  // Keywords
+  const [keywords, setKeywords] = useState<TransactionKeyword[] | null>(null);
+  const [kwCategory, setKwCategory] = useState("");
+  const [kwWord, setKwWord] = useState("");
+  const [kwNewWord, setKwNewWord] = useState("");
+
+  // CBR / currency rates
+  const [supportedCurrencies, setSupportedCurrencies] = useState<Currency[] | null>(null);
+  const [latestRates, setLatestRates] = useState<CurrencyRate[] | null>(null);
+  const [ratesDate, setRatesDate] = useState("");
+  const [ratesByDate, setRatesByDate] = useState<CurrencyRate[] | null>(null);
+  const [syncDate, setSyncDate] = useState("");
+
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError("");
@@ -102,6 +235,20 @@ export default function AdminPage() {
       setBusy(false);
     }
   };
+
+  /** Профиль относится к полю UUID: либо совпадает с введённым id, либо профиль загружен только по email (поле UUID пустое). */
+  const userProfileMatchesInput =
+    Boolean(profile) &&
+    (userId ? profile!.user_id === userId : true);
+  const userIsActive = profile ? profile.active !== false : true;
+
+  const accountIsActive = singleAccount ? singleAccount.active !== false : true;
+
+  const categoriesByCode = useMemo(() => {
+    const map = new Map<string, TransactionCategory>();
+    for (const c of categories ?? []) map.set(c.code, c);
+    return map;
+  }, [categories]);
 
   return (
     <AdminRoute>
@@ -126,7 +273,7 @@ export default function AdminPage() {
         )}
 
         <AdminSection
-          title="Users"
+          title="Пользователи"
           subtitle="Поиск профиля, просмотр счетов и управление блокировкой пользователя."
         >
           <Card accent>
@@ -138,7 +285,7 @@ export default function AdminPage() {
                 <input
                   value={userId}
                   onChange={(e) => setUserId(e.target.value.trim())}
-                  placeholder="user UUID"
+                  placeholder="UUID пользователя"
                   className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
                 />
                 <Button
@@ -167,19 +314,33 @@ export default function AdminPage() {
                 >
                   Счета (user/get-accounts)
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={busy || !userId}
-                  onClick={() => {
-                    if (!confirm(`Заблокировать пользователя ${userId}?`)) return;
-                    run(async () => {
-                      await adminApi.blockUser(userId);
-                      setMessage("Пользователь заблокирован.");
-                    });
-                  }}
-                >
-                  Блокировать
-                </Button>
+                {userProfileMatchesInput && profile && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      const id = profile.user_id;
+                      if (userIsActive) {
+                        if (!confirm(`Заблокировать пользователя ${id}?`)) return;
+                        run(async () => {
+                          await adminApi.blockUser(id);
+                          const p = await adminApi.getUserProfile(id);
+                          setProfile(p);
+                          setMessage("Пользователь заблокирован.");
+                        });
+                      } else {
+                        run(async () => {
+                          await adminApi.unblockUser(id);
+                          const p = await adminApi.getUserProfile(id);
+                          setProfile(p);
+                          setMessage("Пользователь разблокирован.");
+                        });
+                      }
+                    }}
+                  >
+                    {userIsActive ? "Заблокировать" : "Разблокировать"}
+                  </Button>
+                )}
               </div>
               {profile && (
                 <UserProfileCard profile={profile} />
@@ -204,6 +365,9 @@ export default function AdminPage() {
                             {formatCurrency(a.balance, a.currency)}
                           </span>
                         </div>
+                        <div className="mt-2">
+                          <ActiveBadge active={a.active !== false} />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -221,7 +385,7 @@ export default function AdminPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value.trim())}
-                placeholder="email"
+                placeholder="Email"
                 className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
               />
               <Button
@@ -231,6 +395,7 @@ export default function AdminPage() {
                   run(async () => {
                     const p = await adminApi.getUserProfileByEmail(email);
                     setProfile(p);
+                    setUserId(p.user_id);
                     setMessage("Профиль по email загружен.");
                   })
                 }
@@ -242,7 +407,7 @@ export default function AdminPage() {
         </AdminSection>
 
         <AdminSection
-          title="Accounts"
+          title="Счета"
           subtitle="Операции просмотра счетов пользователя и конкретного счета."
         >
           <Card>
@@ -254,7 +419,7 @@ export default function AdminPage() {
                 <input
                   value={bankListUserId}
                   onChange={(e) => setBankListUserId(e.target.value.trim())}
-                  placeholder="user UUID"
+                  placeholder="UUID пользователя"
                   className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
                 />
                 <Button
@@ -272,13 +437,11 @@ export default function AdminPage() {
                 </Button>
               </div>
               {bankList && (
-                <ul className="text-sm space-y-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {bankList.map((a) => (
-                    <li key={a.account_id} className="font-mono text-xs">
-                      {a.account_id} · {formatCurrency(a.balance, a.currency)}
-                    </li>
+                    <AccountCardAdmin key={a.account_id} account={a} />
                   ))}
-                </ul>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -292,7 +455,7 @@ export default function AdminPage() {
                 <input
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value.trim())}
-                  placeholder="account UUID"
+                  placeholder="UUID счёта"
                   className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
                 />
                 <Button
@@ -308,18 +471,41 @@ export default function AdminPage() {
                 >
                   Загрузить
                 </Button>
+                {singleAccount && singleAccount.account_id === accountId && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      const id = singleAccount.account_id;
+                      if (accountIsActive) {
+                        if (!confirm(`Заблокировать счёт ${id}?`)) return;
+                        run(async () => {
+                          await adminApi.deactivateAccount(id);
+                          const a = await adminApi.getBankAccount(id);
+                          setSingleAccount(a);
+                          setMessage("Счёт заблокирован.");
+                        });
+                      } else {
+                        run(async () => {
+                          await adminApi.reactivateAccount(id);
+                          const a = await adminApi.getBankAccount(id);
+                          setSingleAccount(a);
+                          setMessage("Счёт разблокирован.");
+                        });
+                      }
+                    }}
+                  >
+                    {accountIsActive ? "Заблокировать" : "Разблокировать"}
+                  </Button>
+                )}
               </div>
-              {singleAccount && (
-                <pre className="text-xs overflow-auto p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                  {JSON.stringify(singleAccount, null, 2)}
-                </pre>
-              )}
+              {singleAccount && <AccountCardAdmin account={singleAccount} />}
             </CardContent>
           </Card>
         </AdminSection>
 
         <AdminSection
-          title="Transactions"
+          title="Транзакции"
           subtitle="Просмотр и отмена транзакций."
         >
           <Card>
@@ -331,7 +517,7 @@ export default function AdminPage() {
                 <input
                   value={txId}
                   onChange={(e) => setTxId(e.target.value.trim())}
-                  placeholder="transaction UUID"
+                  placeholder="UUID транзакции"
                   className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
                 />
                 <Button
@@ -361,17 +547,401 @@ export default function AdminPage() {
                   Отменить
                 </Button>
               </div>
-              {tx && (
-                <pre className="text-xs overflow-auto p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-56">
-                  {JSON.stringify(tx, null, 2)}
-                </pre>
+              {tx && <TransactionCardAdmin tx={tx} />}
+            </CardContent>
+          </Card>
+        </AdminSection>
+
+        <AdminSection
+          title="Категории"
+          subtitle="Категории транзакций (создать/обновить/удалить/список)."
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Категории</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await categoriesApi.getAll();
+                      setCategories(data);
+                      setMessage("Категории загружены.");
+                    })
+                  }
+                >
+                  Обновить список
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  value={catCode}
+                  onChange={(e) => setCatCode(e.target.value.trim())}
+                  placeholder="Код (например: FOOD)"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
+                />
+                <input
+                  value={catName}
+                  onChange={(e) => setCatName(e.target.value)}
+                  placeholder="Название"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                />
+                <input
+                  value={catColor}
+                  onChange={(e) => setCatColor(e.target.value)}
+                  placeholder="Цвет (например: #0d9488)"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={busy || !catCode || !catName || !catColor}
+                  onClick={() =>
+                    run(async () => {
+                      await categoriesApi.create({
+                        code: catCode,
+                        display_name: catName,
+                        color_code: catColor,
+                      });
+                      const data = await categoriesApi.getAll();
+                      setCategories(data);
+                      setMessage("Категория создана.");
+                    })
+                  }
+                >
+                  Создать
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || !catCode}
+                  onClick={() =>
+                    run(async () => {
+                      const existing = categoriesByCode.get(catCode);
+                      await categoriesApi.update(catCode, {
+                        display_name: catName || existing?.display_name,
+                        color_code: catColor || existing?.color_code,
+                      });
+                      const data = await categoriesApi.getAll();
+                      setCategories(data);
+                      setMessage("Категория обновлена.");
+                    })
+                  }
+                >
+                  Обновить
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || !catCode}
+                  onClick={() => {
+                    if (!confirm(`Удалить категорию ${catCode}?`)) return;
+                    run(async () => {
+                      await categoriesApi.delete(catCode);
+                      const data = await categoriesApi.getAll();
+                      setCategories(data);
+                      setMessage("Категория удалена.");
+                    });
+                  }}
+                >
+                  Удалить
+                </Button>
+              </div>
+
+              {categories && categories.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {categories.map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => {
+                        setCatCode(c.code);
+                        setCatName(c.display_name);
+                        setCatColor(c.color_code);
+                      }}
+                      className="text-left rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                          {c.code}
+                        </span>
+                        <span
+                          className="h-3 w-3 rounded-full border border-slate-200 dark:border-slate-700"
+                          style={{ background: c.color_code }}
+                        />
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {c.display_name}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {c.is_active === false ? "Неактивна" : "Активна"}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
         </AdminSection>
 
         <AdminSection
-          title="API"
+          title="Ключевые слова"
+          subtitle="Ключевые слова (создать/обновить/удалить/список/по категории)."
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Ключевые слова</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await keywordsApi.getAll();
+                      setKeywords(data);
+                      setMessage("Ключевые слова загружены.");
+                    })
+                  }
+                >
+                  Показать все
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || !kwCategory}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await keywordsApi.getByCategory(kwCategory);
+                      setKeywords(data);
+                      setMessage("Ключевые слова по категории загружены.");
+                    })
+                  }
+                >
+                  Показать по категории
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  value={kwCategory}
+                  onChange={(e) => setKwCategory(e.target.value.trim())}
+                  placeholder="Код категории"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
+                />
+                <input
+                  value={kwWord}
+                  onChange={(e) => setKwWord(e.target.value)}
+                  placeholder="Слово"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                />
+                <input
+                  value={kwNewWord}
+                  onChange={(e) => setKwNewWord(e.target.value)}
+                  placeholder="Новое слово (для обновления)"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={busy || !kwCategory || !kwWord}
+                  onClick={() =>
+                    run(async () => {
+                      await keywordsApi.create({ category_code: kwCategory, word: kwWord });
+                      const data = await keywordsApi.getByCategory(kwCategory);
+                      setKeywords(data);
+                      setMessage("Ключевое слово создано.");
+                    })
+                  }
+                >
+                  Создать
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || !kwCategory || !kwWord || !kwNewWord}
+                  onClick={() =>
+                    run(async () => {
+                      await keywordsApi.update(kwCategory, kwWord, {
+                        category_code: kwCategory,
+                        word: kwNewWord,
+                      });
+                      const data = await keywordsApi.getByCategory(kwCategory);
+                      setKeywords(data);
+                      setMessage("Ключевое слово обновлено.");
+                    })
+                  }
+                >
+                  Обновить
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || !kwCategory || !kwWord}
+                  onClick={() => {
+                    if (!confirm(`Удалить "${kwWord}" из категории ${kwCategory}?`)) return;
+                    run(async () => {
+                      await keywordsApi.delete(kwCategory, kwWord);
+                      const data = await keywordsApi.getByCategory(kwCategory);
+                      setKeywords(data);
+                      setMessage("Ключевое слово удалено.");
+                    });
+                  }}
+                >
+                  Удалить
+                </Button>
+              </div>
+
+              {keywords && keywords.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {keywords.map((k, idx) => (
+                    <button
+                      key={`${k.categoryCode}-${k.word}-${idx}`}
+                      type="button"
+                      onClick={() => {
+                        setKwCategory(k.categoryCode);
+                        setKwWord(k.word);
+                        setKwNewWord("");
+                      }}
+                      className="text-left rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                    >
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {k.word}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Категория: <span className="font-mono">{k.categoryCode}</span>
+                        {k.createdAt ? ` · ${formatDateTime(k.createdAt)}` : ""}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </AdminSection>
+
+        <AdminSection
+          title="Курсы ЦБР"
+          subtitle="Курсы валют (поддерживаемые, последние, по дате, синхронизация с ЦБР)."
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Курсы валют</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await cbrApi.getSupportedCurrencies();
+                      setSupportedCurrencies(data);
+                      setMessage("Поддерживаемые валюты загружены.");
+                    })
+                  }
+                >
+                  Поддерживаемые валюты
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await cbrApi.getLatestRates();
+                      setLatestRates(data);
+                      setMessage("Последние курсы загружены.");
+                    })
+                  }
+                >
+                  Последние курсы
+                </Button>
+              </div>
+
+              {supportedCurrencies && (
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Валюты:{" "}
+                  <span className="font-mono text-xs">
+                    {supportedCurrencies.join(", ")}
+                  </span>
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  value={ratesDate}
+                  onChange={(e) => setRatesDate(e.target.value)}
+                  placeholder="Дата (YYYY-MM-DD)"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
+                />
+                <Button
+                  variant="outline"
+                  disabled={busy || !ratesDate}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await cbrApi.getRatesByDate(ratesDate);
+                      setRatesByDate(data);
+                      setMessage("Курсы по дате загружены.");
+                    })
+                  }
+                >
+                  Курсы по дате
+                </Button>
+                <input
+                  value={syncDate}
+                  onChange={(e) => setSyncDate(e.target.value)}
+                  placeholder="Дата синхронизации (YYYY-MM-DD)"
+                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={busy || !syncDate}
+                  onClick={() =>
+                    run(async () => {
+                      await cbrApi.syncFromCbr(syncDate);
+                      const data = await cbrApi.getRatesByDate(syncDate);
+                      setRatesByDate(data);
+                      setMessage("Синхронизация выполнена.");
+                    })
+                  }
+                >
+                  Синхронизировать с ЦБР
+                </Button>
+              </div>
+
+              {(latestRates && latestRates.length > 0) || (ratesByDate && ratesByDate.length > 0) ? (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="grid grid-cols-4 bg-slate-50 dark:bg-slate-900/60 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    <div className="px-3 py-2">Валюта</div>
+                    <div className="px-3 py-2">Курс</div>
+                    <div className="px-3 py-2">Дата</div>
+                    <div className="px-3 py-2">Создано</div>
+                  </div>
+                  {(ratesByDate ?? latestRates ?? []).map((r) => (
+                    <div
+                      key={`${r.currency}-${r.date}-${r.createdAt}`}
+                      className="grid grid-cols-4 border-t border-slate-200 dark:border-slate-700 text-sm"
+                    >
+                      <div className="px-3 py-2 font-mono text-xs">{r.currency}</div>
+                      <div className="px-3 py-2">{r.rate}</div>
+                      <div className="px-3 py-2 font-mono text-xs">{r.date}</div>
+                      <div className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                        {formatDateTime(r.createdAt)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </AdminSection>
+
+        <AdminSection
+          title="Документация"
           subtitle="Быстрые ссылки на документацию и OpenAPI спецификацию."
         >
           <Card>

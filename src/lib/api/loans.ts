@@ -47,12 +47,10 @@ export const loansApi = {
   },
 
   monthlyPaymentCost(
-    creditAccountId: string,
-    data: LoanRepaymentRequest
+    creditAccountId: string
   ): Promise<LoanPaymentAmountResponse> {
     return apiClient.post<LoanPaymentAmountResponse>(
-      `/loans/credit-accounts/${creditAccountId}/payment-cost/monthly`,
-      { amount: data.amount }
+      `/loans/credit-accounts/${creditAccountId}/payment-cost/monthly`
     );
   },
 

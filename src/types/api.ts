@@ -16,6 +16,11 @@ export interface Verify2FARequest {
   code: string;
 }
 
+export interface UpdatePasswordRequest {
+  old_password: string;
+  new_password: string;
+}
+
 export interface CreateUserRequest {
   first_name: string;
   last_name: string;
@@ -82,6 +87,10 @@ export interface Transaction {
   transaction_date: string; // ISO date-time
   comment?: string;
   status?: TransactionStatus;
+  /** Код категории транзакции (если задан на бэкенде) */
+  category?: string;
+  /** Комиссия (если применяется) */
+  commission?: number;
 }
 
 export type TransactionStatus = "PENDING" | "COMPLETED" | "CANCELLED" | "FAILED";
@@ -97,6 +106,10 @@ export interface TransactionResponse {
   transaction_date: string; // ISO date-time
   comment?: string;
   status?: TransactionStatus;
+  /** Код категории транзакции */
+  category?: string;
+  /** Комиссия (если применяется) */
+  commission?: number;
 }
 
 export interface RecentTransactionsResponse {
@@ -106,11 +119,30 @@ export interface RecentTransactionsResponse {
   transactions: TransactionResponse[];
 }
 
+export interface LoginInitResponse {
+  requires2fa?: boolean;
+  tempToken?: string;
+  email?: string;
+}
+
 export interface CurrencyRate {
   currency: Currency;
   rate: number;
   date: string;
   createdAt: string;
+  comment?: string;
+}
+
+export interface CreateCurrencyRateRequest {
+  currency: Currency;
+  rate: number;
+  date: string; // YYYY-MM-DD
+  comment?: string;
+}
+
+export interface UpdateCurrencyRateRequest {
+  rate: number;
+  comment?: string;
 }
 
 export interface CreateLoanRequest {
@@ -141,6 +173,40 @@ export interface LoanResponse {
   outstandingPrincipal: number;
   nextPaymentDate: string;
   status: LoanStatus;
+}
+
+export interface CreateCategoryRequest {
+  code: string;
+  display_name: string;
+  color_code: string;
+}
+
+export interface UpdateCategoryRequest {
+  display_name?: string;
+  color_code?: string;
+}
+
+export interface TransactionCategory {
+  code: string;
+  display_name: string;
+  color_code: string;
+  is_active?: boolean;
+}
+
+export interface CreateKeywordRequest {
+  word: string;
+  category_code: string;
+}
+
+export interface UpdateKeywordRequest {
+  word?: string;
+  category_code?: string;
+}
+
+export interface TransactionKeyword {
+  word: string;
+  categoryCode: string;
+  createdAt?: string;
 }
 
 // Auth response (login returns a token)

@@ -2,6 +2,7 @@ import { apiClient } from "./client";
 import type {
   AuthUserRequest,
   CreateUserRequest,
+  UpdatePasswordRequest,
   Verify2FARequest,
   UserProfileResponse,
 } from "@/types";
@@ -97,6 +98,13 @@ export const authApi = {
    */
   async register(data: CreateUserRequest): Promise<UserProfileResponse> {
     return apiClient.post<UserProfileResponse>("/user/create", data);
+  },
+
+  /**
+   * Change current user password
+   */
+  async changePassword(data: UpdatePasswordRequest): Promise<void> {
+    return apiClient.put<void>("/user/change-password", data);
   },
 
   /**

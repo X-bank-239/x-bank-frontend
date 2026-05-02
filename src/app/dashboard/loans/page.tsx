@@ -196,7 +196,8 @@ export default function LoansPage() {
                     setLoan(created);
                     setLoans((prev) => [created, ...prev.filter((l) => l.loanId !== created.loanId)]);
                     setCreditAccountId(created.creditAccountId);
-                    setMessage("Кредит создан.");
+                    const ratePct = Math.round(created.annualInterestRate * 10000) / 100;
+                    setMessage(`Кредит создан. Ставка: ${ratePct}%.`);
                     await refreshUser();
                   })
                 }
@@ -376,7 +377,7 @@ export default function LoansPage() {
           <CardContent className="text-sm space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 dark:text-slate-300">
               <div>
-                <span className="text-slate-500 dark:text-slate-400">Loan ID:</span>{" "}
+                <span className="text-slate-500 dark:text-slate-400">ID кредита:</span>{" "}
                 <span className="font-mono text-xs break-all">{loan.loanId}</span>
               </div>
               <div>
