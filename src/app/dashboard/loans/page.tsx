@@ -9,7 +9,7 @@ import {
 } from "@/lib/loan-repayment";
 import type { LoanResponse } from "@/types";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 import Link from "next/link";
 
 function isLoanOverdue(nextPaymentDate: string, status: LoanResponse["status"]): boolean {
@@ -25,8 +25,8 @@ function isLoanOverdue(nextPaymentDate: string, status: LoanResponse["status"]):
 export default function LoansPage() {
   const { user, refreshUser } = useAuth();
 
-  const creditAccounts = useMemo(
-    () => (user?.accounts ?? []).filter((a) => a.account_type === "CREDIT"),
+  const debitAccounts = useMemo(
+    () => (user?.accounts ?? []).filter((a) => a.account_type === "DEBIT"),
     [user]
   );
 
@@ -37,27 +37,27 @@ export default function LoansPage() {
   const [loans, setLoans] = useState<LoanResponse[]>([]);
 
   const [createCreditAccountId, setCreateCreditAccountId] = useState(
-    creditAccounts[0]?.account_id ?? ""
+    debitAccounts[0]?.account_id ?? ""
   );
   const selectedCreditAccount = useMemo(() => {
     return (
-      creditAccounts.find((a) => a.account_id === createCreditAccountId) ??
-      creditAccounts[0]
+      debitAccounts.find((a) => a.account_id === createCreditAccountId) ??
+      debitAccounts[0]
     );
-  }, [creditAccounts, createCreditAccountId]);
+  }, [debitAccounts, createCreditAccountId]);
 
   const [principalAmount, setPrincipalAmount] = useState("100000");
   const [termMonths, setTermMonths] = useState("12");
-  const [creditAccountId, setCreditAccountId] = useState("");
+  const [repayDebitAccountId, setRepayDebitAccountId] = useState("");
   const [repayAmount, setRepayAmount] = useState("");
   const [repayMode, setRepayMode] = useState<"MONTHLY" | "EARLY">("MONTHLY");
 
   useEffect(() => {
-    if (creditAccounts.length === 0) return;
-    if (!createCreditAccountId || !creditAccounts.some((a) => a.account_id === createCreditAccountId)) {
-      setCreateCreditAccountId(creditAccounts[0]!.account_id);
+    if (debitAccounts.length === 0) return;
+    if (!createCreditAccountId || !debitAccounts.some((a) => a.account_id === createCreditAccountId)) {
+      setCreateCreditAccountId(debitAccounts[0]!.account_id);
     }
-  }, [creditAccounts, createCreditAccountId]);
+  }, [debitAccounts, createCreditAccountId]);
 
   useEffect(() => {
     void (async () => {
@@ -85,17 +85,17 @@ export default function LoansPage() {
   };
 
   const selectedLoan = useMemo(() => {
-    if (loan?.creditAccountId === creditAccountId) return loan;
-    return loans.find((item) => item.creditAccountId === creditAccountId) ?? null;
-  }, [loan, loans, creditAccountId]);
+    if (loan?.debitAccountId === repayDebitAccountId) return loan;
+    return loans.find((item) => item.debitAccountId === repayDebitAccountId) ?? null;
+  }, [loan, loans, repayDebitAccountId]);
 
   const canRepay =
-    Boolean(creditAccountId) && selectedLoan?.status === "ACTIVE";
+    Boolean(repayDebitAccountId) && selectedLoan?.status === "ACTIVE";
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Кредиты</h1>
+        <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Кредит</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
           Оформление кредита и погашение.
         </p>
@@ -118,10 +118,9 @@ export default function LoansPage() {
           <CardTitle>Создать кредит</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {creditAccounts.length === 0 ? (
+          {debitAccounts.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Нужен кредитный счёт (тип{" "}
-              <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">CREDIT</code>) —{" "}
+              Нужен дебетовый счёт —{" "}
               <Link
                 href="/dashboard/accounts"
                 className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
@@ -132,24 +131,24 @@ export default function LoansPage() {
             </p>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="w-full sm:flex-1 sm:min-w-[200px]">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Кредитный счёт
+                    Счёт зачисления и погашения (дебетовый)
                   </label>
                   <select
                     value={createCreditAccountId}
                     onChange={(e) => setCreateCreditAccountId(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
                   >
-                    {creditAccounts.map((a) => (
+                    {debitAccounts.map((a) => (
                       <option key={a.account_id} value={a.account_id}>
                         {a.currency} · {formatCurrency(a.balance, a.currency)}
                       </option>
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="w-full sm:w-40 sm:shrink-0">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Сумма
                   </label>
@@ -162,7 +161,7 @@ export default function LoansPage() {
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
                   />
                 </div>
-                <div>
+                <div className="w-full sm:w-36 sm:shrink-0">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Срок (мес.)
                   </label>
@@ -175,35 +174,39 @@ export default function LoansPage() {
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
                   />
                 </div>
-              </div>
-              <Button
-                disabled={
-                  busy ||
-                  !createCreditAccountId ||
-                  Number(principalAmount) <= 0 ||
-                  Number(termMonths) <= 0
-                }
-                onClick={() =>
-                  run(async () => {
-                    if (!selectedCreditAccount) {
-                      throw new Error("Не удалось определить кредитный счёт");
+                <div className="w-full sm:w-auto sm:shrink-0">
+                  <div className="mb-1 hidden h-5 sm:block" aria-hidden />
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={
+                      busy ||
+                      !createCreditAccountId ||
+                      Number(principalAmount) <= 0 ||
+                      Number(termMonths) <= 0
                     }
-                    const created = await loansApi.create({
-                      creditAccountId: createCreditAccountId,
-                      principalAmount: Number(principalAmount),
-                      termMonths: Number(termMonths),
-                    });
-                    setLoan(created);
-                    setLoans((prev) => [created, ...prev.filter((l) => l.loanId !== created.loanId)]);
-                    setCreditAccountId(created.creditAccountId);
-                    const ratePct = Math.round(created.annualInterestRate * 10000) / 100;
-                    setMessage(`Кредит создан. Ставка: ${ratePct}%.`);
-                    await refreshUser();
-                  })
-                }
-              >
-                Создать
-              </Button>
+                    onClick={() =>
+                      run(async () => {
+                        if (!selectedCreditAccount) {
+                          throw new Error("Не удалось определить кредитный счёт");
+                        }
+                        const created = await loansApi.create({
+                          debitAccountId: createCreditAccountId,
+                          principalAmount: Number(principalAmount),
+                          termMonths: Number(termMonths),
+                        });
+                        setLoan(created);
+                        setLoans((prev) => [created, ...prev.filter((l) => l.loanId !== created.loanId)]);
+                        setRepayDebitAccountId(created.debitAccountId);
+                        const ratePct = Math.round(created.annualInterestRate * 10000) / 100;
+                        setMessage(`Кредит создан. Ставка: ${ratePct}%.`);
+                        await refreshUser();
+                      })
+                    }
+                  >
+                    Создать
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </CardContent>
@@ -220,11 +223,11 @@ export default function LoansPage() {
                 Кредит из списка
               </label>
               <select
-                value={creditAccountId}
+                value={repayDebitAccountId}
                 onChange={(e) => {
                   const id = e.target.value;
-                  setCreditAccountId(id);
-                  const found = loans.find((item) => item.creditAccountId === id) ?? null;
+                  setRepayDebitAccountId(id);
+                  const found = loans.find((item) => item.debitAccountId === id) ?? null;
                   setLoan(found);
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
@@ -233,8 +236,8 @@ export default function LoansPage() {
                 {loans.map((item) => {
                   const overdue = isLoanOverdue(item.nextPaymentDate, item.status);
                   return (
-                    <option key={item.loanId} value={item.creditAccountId}>
-                      {item.creditAccountId} · {item.status}
+                    <option key={item.loanId} value={item.debitAccountId}>
+                      {item.debitAccountId} · {getLoanStatusLabel(item.status)}
                       {overdue ? " · ПРОСРОЧКА" : ""}
                     </option>
                   );
@@ -271,7 +274,7 @@ export default function LoansPage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-xs break-all">{selectedLoan.loanId}</span>
-                <span className="text-xs">{selectedLoan.status}</span>
+                <span className="text-xs">{getLoanStatusLabel(selectedLoan.status)}</span>
               </div>
               <div className="mt-1 text-slate-600 dark:text-slate-300">
                 След. платеж: {selectedLoan.nextPaymentDate} · Срок: {selectedLoan.termMonths} мес.
@@ -300,13 +303,13 @@ export default function LoansPage() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              disabled={busy || !creditAccountId || !canRepay}
+              disabled={busy || !repayDebitAccountId || !canRepay}
               onClick={() =>
                 run(async () => {
                   const data =
-                    loan?.creditAccountId === creditAccountId
+                    loan?.debitAccountId === repayDebitAccountId
                       ? loan
-                      : await loansApi.get(creditAccountId);
+                      : await loansApi.get(repayDebitAccountId);
                   assertLoanActiveForRepayment(data);
                   const amount = data.monthlyPayment;
                   setRepayMode("MONTHLY");
@@ -320,12 +323,12 @@ export default function LoansPage() {
             <Button
               variant="outline"
               className="border-amber-200 text-amber-800 hover:bg-amber-50 dark:border-amber-900 dark:text-amber-400 dark:hover:bg-amber-950/40"
-              disabled={busy || !creditAccountId || !canRepay}
+              disabled={busy || !repayDebitAccountId || !canRepay}
               onClick={() =>
                 run(async () => {
-                  const loanForCost = await loansApi.get(creditAccountId);
+                  const loanForCost = await loansApi.get(repayDebitAccountId);
                   assertLoanActiveForRepayment(loanForCost);
-                  const cost = await loansApi.fullPaymentCost(creditAccountId);
+                  const cost = await loansApi.fullPaymentCost(repayDebitAccountId);
                   setRepayMode("EARLY");
                   setRepayAmount(String(cost.amount));
                   setMessage("Подставлена сумма полного досрочного погашения.");
@@ -337,22 +340,22 @@ export default function LoansPage() {
             <Button
               disabled={
                 busy ||
-                !creditAccountId ||
+                !repayDebitAccountId ||
                 !canRepay ||
                 Number(repayAmount) <= 0
               }
               onClick={() =>
                 run(async () => {
                   const before =
-                    loan?.creditAccountId === creditAccountId
+                    loan?.debitAccountId === repayDebitAccountId
                       ? loan
-                      : await loansApi.get(creditAccountId);
+                      : await loansApi.get(repayDebitAccountId);
                   assertLoanActiveForRepayment(before);
                   const amount = Number(repayAmount);
                   const updated =
                     repayMode === "MONTHLY"
-                      ? await loansApi.repayMonthly(creditAccountId, { amount })
-                      : await loansApi.repayEarly(creditAccountId, { amount });
+                      ? await loansApi.repayMonthly(repayDebitAccountId, { amount })
+                      : await loansApi.repayEarly(repayDebitAccountId, { amount });
                   setLoan(updated);
                   setMessage(
                     repayMode === "MONTHLY"
@@ -369,6 +372,84 @@ export default function LoansPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Автоплатёж и расчёт ежемесячного платежа</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Управление автосписанием и запрос суммы ежемесячного платежа по выбранному дебетовому счёту кредита.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={busy || !canRepay}
+              onClick={() =>
+                run(async () => {
+                  const updated = await loansApi.getAutopayStatusByAccount(repayDebitAccountId);
+                  setLoans((prev) => prev.map((l) => (l.loanId === updated.loanId ? updated : l)));
+                  setLoan((prev) => (prev?.loanId === updated.loanId ? updated : prev));
+                  setMessage(
+                    `Автоплатёж: ${updated.autopayEnabled ? "включён" : "выключен"}.`
+                  );
+                })
+              }
+            >
+              Обновить статус
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || !canRepay}
+              onClick={() =>
+                run(async () => {
+                  const updated = await loansApi.enableAutopayByAccount(repayDebitAccountId);
+                  setLoans((prev) => prev.map((l) => (l.loanId === updated.loanId ? updated : l)));
+                  setLoan((prev) => (prev?.loanId === updated.loanId ? updated : prev));
+                  setMessage("Автоплатёж включён.");
+                })
+              }
+            >
+              Включить автоплатёж
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || !canRepay}
+              onClick={() =>
+                run(async () => {
+                  const updated = await loansApi.disableAutopayByAccount(repayDebitAccountId);
+                  setLoans((prev) => prev.map((l) => (l.loanId === updated.loanId ? updated : l)));
+                  setLoan((prev) => (prev?.loanId === updated.loanId ? updated : prev));
+                  setMessage("Автоплатёж выключен.");
+                })
+              }
+            >
+              Выключить автоплатёж
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || !canRepay}
+              onClick={() =>
+                run(async () => {
+                  const cost = await loansApi.monthlyPaymentCost(repayDebitAccountId);
+                  setMessage(`Сумма ежемесячного платежа по расчёту банка: ${cost.amount}`);
+                })
+              }
+            >
+              Расчёт ежемесячного платежа
+            </Button>
+          </div>
+          {selectedLoan && (
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Текущее состояние в данных: автоплатёж{" "}
+              <span className="font-medium">
+                {selectedLoan.autopayEnabled ? "включён" : "выключен"}
+              </span>
+              . Обновите статус после изменений на сервере.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {loan && (
         <Card>
           <CardHeader>
@@ -381,11 +462,12 @@ export default function LoansPage() {
                 <span className="font-mono text-xs break-all">{loan.loanId}</span>
               </div>
               <div>
-                <span className="text-slate-500 dark:text-slate-400">Статус:</span> {loan.status}
+                <span className="text-slate-500 dark:text-slate-400">Статус:</span>{" "}
+                {getLoanStatusLabel(loan.status)}
               </div>
               <div className="sm:col-span-2">
-                <span className="text-slate-500 dark:text-slate-400">Кредитный счёт:</span>{" "}
-                <span className="font-mono text-xs break-all">{loan.creditAccountId}</span>
+                <span className="text-slate-500 dark:text-slate-400">Дебетовый счёт (погашение):</span>{" "}
+                <span className="font-mono text-xs break-all">{loan.debitAccountId}</span>
               </div>
               <div>
                 <span className="text-slate-500 dark:text-slate-400">Остаток:</span>{" "}

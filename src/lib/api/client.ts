@@ -1,8 +1,4 @@
-const DEFAULT_API_BASE_URL = "https://4c5450410f2f.vps.myjino.ru/api";
-
-function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/+$/, "");
-}
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 /** JWT без префикса Bearer (как в заголовке Authorization) */
 function normalizeStoredToken(raw: string | null): string | null {
@@ -11,9 +7,7 @@ function normalizeStoredToken(raw: string | null): string | null {
   return t || null;
 }
 
-const API_BASE_URL = normalizeBaseUrl(
-  process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL
-);
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiClient {
   private baseUrl: string;
@@ -34,13 +28,15 @@ class ApiClient {
   ): Promise<T> {
     const token = this.getToken();
 
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
+    const headers = new Headers(options.headers as HeadersInit | undefined);
+    const body = options.body;
+    const hasJsonBody = typeof body === "string" && body.length > 0;
+    if (!headers.has("Content-Type") && hasJsonBody) {
+      headers.set("Content-Type", "application/json");
+    }
 
     if (token) {
-      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     const method = (options.method ?? "GET").toUpperCase();
@@ -53,7 +49,7 @@ class ApiClient {
         headers,
       });
     } catch (e) {
-      console.error("Network Error:", { endpoint, method, error: e });
+      console.error("Сетевая ошибка:", { endpoint, method, error: e });
       throw new Error(
         "Не удалось подключиться к серверу. Проверьте интернет или попробуйте позже."
       );
@@ -67,7 +63,7 @@ class ApiClient {
       switch (response.status) {
         case 401:
           errorMessage = isLoginAttempt
-            ? "Ошибка: неверный логин или пароль"
+            ? "Ошибка: неверный email или пароль"
             : "Сессия истекла или токен недействителен. Войдите снова.";
           break;
         case 400:
@@ -108,7 +104,7 @@ class ApiClient {
         }
       }
 
-      console.error("Request Error:", {
+      console.error("Ошибка запроса:", {
         endpoint,
         method,
         status: response.status,

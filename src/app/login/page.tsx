@@ -51,7 +51,7 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-card p-8">
-          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">Вход в аккаунт</h1>
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">Вход в личный кабинет</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
             Введите email и пароль
           </p>
@@ -72,8 +72,7 @@ export default function LoginPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                placeholder="example@email.com"
+                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 required
               />
             </div>

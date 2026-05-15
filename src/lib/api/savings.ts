@@ -1,0 +1,40 @@
+import { apiClient } from "./client";
+import type {
+  CloseSavingsRequest,
+  CreateSavingsAccountRequest,
+  ProlongSavingsRequest,
+  SavingsAccount,
+} from "@/types";
+
+/**
+ * Вклады (накопительные счета) — пути как в OpenAPI.
+ * create: JSON-тело; prolong/close: поля схемы в query.
+ */
+export const savingsApi = {
+  getAll(): Promise<SavingsAccount[]> {
+    return apiClient.get<SavingsAccount[]>("/savings");
+  },
+
+  getInterest(): Promise<number> {
+    return apiClient.get<number>("/savings/interest");
+  },
+
+  get(accountId: string): Promise<SavingsAccount> {
+    return apiClient.get<SavingsAccount>(`/savings/get/${accountId}`);
+  },
+
+  /** POST /savings/create — тело JSON (`CreateSavingsAccountRequest`), как в OpenAPI. */
+  create(data: CreateSavingsAccountRequest): Promise<SavingsAccount> {
+    return apiClient.post<SavingsAccount>("/savings/create", data);
+  },
+
+  prolong(accountId: string, data: ProlongSavingsRequest): Promise<SavingsAccount> {
+    const q = new URLSearchParams({ new_maturity_date: data.new_maturity_date }).toString();
+    return apiClient.post<SavingsAccount>(`/savings/prolong/${accountId}?${q}`);
+  },
+
+  close(accountId: string, data: CloseSavingsRequest): Promise<void> {
+    const q = new URLSearchParams({ target_account_id: data.target_account_id }).toString();
+    return apiClient.delete<void>(`/savings/close/${accountId}?${q}`);
+  },
+};

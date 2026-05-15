@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { loansApi } from "@/lib/api";
 import type { LoanResponse } from "@/types";
 import { Button, Card, CardContent } from "@/components/ui";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 import { LoanRepaymentForm } from "./LoanRepaymentForm";
 
 function isLoanOverdue(nextPaymentDate: string, status: LoanResponse["status"]): boolean {
@@ -19,12 +19,12 @@ function isLoanOverdue(nextPaymentDate: string, status: LoanResponse["status"]):
   return due < today;
 }
 
-/** Оформление кредита на главной и свёрнутый блок: получение/погашение по creditAccountId. */
+/** Оформление кредита на главной и свёрнутый блок: через дебетовый счёт. */
 export function CreditLoanPanel() {
   const { user, refreshUser } = useAuth();
 
-  const creditAccounts = useMemo(
-    () => (user?.accounts ?? []).filter((a) => a.account_type === "CREDIT"),
+  const debitAccounts = useMemo(
+    () => (user?.accounts ?? []).filter((a) => a.account_type === "DEBIT"),
     [user]
   );
 
@@ -34,17 +34,17 @@ export function CreditLoanPanel() {
   const [loan, setLoan] = useState<LoanResponse | null>(null);
 
   const [createCreditAccountId, setCreateCreditAccountId] = useState(
-    creditAccounts[0]?.account_id ?? ""
+    debitAccounts[0]?.account_id ?? ""
   );
   const [principalAmount, setPrincipalAmount] = useState("100000");
   const [termMonths, setTermMonths] = useState("12");
 
   useEffect(() => {
-    if (creditAccounts.length === 0) return;
-    if (!createCreditAccountId || !creditAccounts.some((a) => a.account_id === createCreditAccountId)) {
-      setCreateCreditAccountId(creditAccounts[0]!.account_id);
+    if (debitAccounts.length === 0) return;
+    if (!createCreditAccountId || !debitAccounts.some((a) => a.account_id === createCreditAccountId)) {
+      setCreateCreditAccountId(debitAccounts[0]!.account_id);
     }
-  }, [creditAccounts, createCreditAccountId]);
+  }, [debitAccounts, createCreditAccountId]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -75,9 +75,9 @@ export function CreditLoanPanel() {
 
       <Card className="border-slate-200 dark:border-slate-800">
         <CardContent className="pt-5 pb-5 space-y-4">
-          {creditAccounts.length === 0 ? (
+          {debitAccounts.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Для кредита нужен кредитный счёт —{" "}
+              Для кредита нужен дебетовый счёт —{" "}
               <Link
                 href="/dashboard/accounts"
                 className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
@@ -91,14 +91,14 @@ export function CreditLoanPanel() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Кредитный счёт
+                    Счёт зачисления и погашения (дебетовый)
                   </label>
                   <select
                     value={createCreditAccountId}
                     onChange={(e) => setCreateCreditAccountId(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
                   >
-                    {creditAccounts.map((a) => (
+                    {debitAccounts.map((a) => (
                       <option key={a.account_id} value={a.account_id}>
                         {a.currency} · {formatCurrency(a.balance, a.currency)}
                       </option>
@@ -142,7 +142,7 @@ export function CreditLoanPanel() {
                 onClick={() =>
                   run(async () => {
                     const created = await loansApi.create({
-                      creditAccountId: createCreditAccountId,
+                      debitAccountId: createCreditAccountId,
                       principalAmount: Number(principalAmount),
                       termMonths: Number(termMonths),
                     });
@@ -179,7 +179,7 @@ export function CreditLoanPanel() {
               Погашение
             </p>
             <LoanRepaymentForm
-              creditAccountId={createCreditAccountId}
+              debitAccountId={createCreditAccountId}
               onRepaid={(updatedLoan) => setLoan(updatedLoan)}
             />
           </div>
@@ -193,11 +193,12 @@ export function CreditLoanPanel() {
                   <span className="font-mono text-xs break-all">{loan.loanId}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 dark:text-slate-400">Статус:</span> {loan.status}
+                  <span className="text-slate-500 dark:text-slate-400">Статус:</span>{" "}
+                  {getLoanStatusLabel(loan.status)}
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-slate-500 dark:text-slate-400">Кредитный счёт:</span>{" "}
-                  <span className="font-mono text-xs break-all">{loan.creditAccountId}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Дебетовый счёт (погашение):</span>{" "}
+                  <span className="font-mono text-xs break-all">{loan.debitAccountId}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 dark:text-slate-400">Остаток:</span>{" "}

@@ -75,7 +75,7 @@ export default function TwoFAPage() {
       localStorage.removeItem("auth_temp_token");
       localStorage.removeItem("auth_temp_email");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка подтверждения 2FA.");
+      setError(err instanceof Error ? err.message : "Не удалось подтвердить вход. Попробуйте снова.");
       setIsSubmitting(false);
     }
   };
@@ -97,12 +97,21 @@ export default function TwoFAPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-card p-8">
-          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">Подтверждение 2FA</h1>
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">
+            Подтверждение входа
+          </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-            {email ? <>Введите код для <span className="font-medium">{email}</span></> : "Введите код из приложения/смс"}
+            {email ? (
+              <>
+                Введите код, отправленный на email{" "}
+                <span className="font-medium">{email}</span>
+              </>
+            ) : (
+              "Введите код из приложения или СМС"
+            )}
           </p>
           <p className={`text-sm mb-4 ${isExpired ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}>
-            {isExpired ? "Код истек. Повторите вход." : `Код действует еще ${formatTime(timeLeft)}`}
+            {isExpired ? "Время действия кода истекло. Войдите снова." : `Код действует ещё ${formatTime(timeLeft)}`}
           </p>
 
           {error && (

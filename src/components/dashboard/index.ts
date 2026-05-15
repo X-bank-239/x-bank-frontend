@@ -4,3 +4,5 @@ export { AccountCard } from "./AccountCard";
 export { CreditLoanPanel } from "./CreditLoanPanel";
 export { LoanRepaymentForm } from "./LoanRepaymentForm";
 export { AccountQuickActionsModal } from "./AccountQuickActionsModal";
+export { SpendingChartsPanel } from "./SpendingChartsPanel";
+export { AllAccountsSpendingSection } from "./AllAccountsSpendingSection";

@@ -45,6 +45,10 @@ export function AccountCard({
   const accentBar = getAccountCardAccent(account.currency);
   const inactive = isAccountInactive(account);
   const canCopy = typeof window !== "undefined" && typeof navigator !== "undefined";
+  /** Было: только CREDIT. Сейчас: ещё DEBIT — кредит наличными привязан к дебету; данные только если родитель передал пропсы. */
+  const showExtraPaymentInfo =
+    (account.account_type === "CREDIT" || account.account_type === "DEBIT") &&
+    (Boolean(nextPaymentDate) || typeof annualInterestRate === "number");
 
   const copyAccountId = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,12 +106,12 @@ export function AccountCard({
                   Копировать
                 </button>
               </div>
-              {account.account_type === "CREDIT" && nextPaymentDate && (
+              {showExtraPaymentInfo && nextPaymentDate && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   След. платеж: {nextPaymentDate}
                 </p>
               )}
-              {account.account_type === "CREDIT" && typeof annualInterestRate === "number" && (
+              {showExtraPaymentInfo && typeof annualInterestRate === "number" && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
                 </p>
@@ -191,12 +195,12 @@ export function AccountCard({
               </button>
             </div>
           </div>
-          {account.account_type === "CREDIT" && nextPaymentDate && (
+          {showExtraPaymentInfo && nextPaymentDate && (
             <p className="text-white/80 text-xs mt-1">
               След. платеж: {nextPaymentDate}
             </p>
           )}
-          {account.account_type === "CREDIT" && typeof annualInterestRate === "number" && (
+          {showExtraPaymentInfo && typeof annualInterestRate === "number" && (
             <p className="text-white/80 text-xs mt-1">
               Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
             </p>

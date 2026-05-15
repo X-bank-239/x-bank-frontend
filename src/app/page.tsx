@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -74,7 +74,7 @@ export default function Home() {
             X-Bank — управление финансами
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-md mx-auto">
-            Переводы, платежи и счета в одном приложении.
+            Переводы, платежи и счёта в одном приложении.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {isAuthed ? (
@@ -113,7 +113,7 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">Мгновенные переводы</h3>
             <p className="text-slate-600 dark:text-slate-400 text-sm">
-              Переводите деньги между счетами и другим пользователям без комиссий.
+              Переводите деньги между счётами и другим пользователям без комиссий.
             </p>
           </div>
 

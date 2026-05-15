@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { AdminRoute } from "@/components/AdminRoute";
-import { adminApi, cbrApi, categoriesApi, keywordsApi } from "@/lib/api";
+import { adminApi, cbrApi, categoriesApi, keywordsApi, settingsApi, transactionsApi } from "@/lib/api";
 import type {
+  AppSetting,
   BankAccountResponse,
   Currency,
   CurrencyRate,
@@ -14,7 +15,7 @@ import type {
 } from "@/types";
 import { OPENAPI_SPEC_URL, SWAGGER_UI_URL } from "@/lib/swagger";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getTransactionStatusLabel, getTransactionTypeName, getUserRoleLabel, getAccountTypeName } from "@/lib/utils";
 
 function AdminSection({
   title,
@@ -78,7 +79,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 
 function UserProfileCard({ profile }: { profile: UserProfileResponse }) {
   const fullName = `${profile.first_name} ${profile.last_name}`.trim();
-  const role = profile.role ?? (profile.is_admin ? "ADMIN" : "USER");
+  const role = profile.role ?? "USER";
   const isActive = profile.active !== false;
 
   return (
@@ -92,7 +93,7 @@ function UserProfileCard({ profile }: { profile: UserProfileResponse }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30">
-            {role}
+            {getUserRoleLabel(role)}
           </span>
           <ActiveBadge active={isActive} />
         </div>
@@ -121,7 +122,7 @@ function AccountCardAdmin({ account }: { account: BankAccountResponse }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            {account.account_type} · {account.currency}
+            {getAccountTypeName(account.account_type)} · {account.currency}
           </p>
           <p className="mt-1 font-mono text-xs text-slate-500 dark:text-slate-400 break-all">
             {account.account_id}
@@ -145,7 +146,7 @@ function TransactionCardAdmin({ tx }: { tx: TransactionResponse }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            {tx.transaction_type} · {formatCurrency(tx.amount, tx.currency)}
+            {getTransactionTypeName(tx.transaction_type)} · {formatCurrency(tx.amount, tx.currency)}
           </p>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Дата: {formatDateTime(tx.transaction_date)}
@@ -153,7 +154,7 @@ function TransactionCardAdmin({ tx }: { tx: TransactionResponse }) {
         </div>
         {tx.status && (
           <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800">
-            {tx.status}
+            {getTransactionStatusLabel(tx.status)}
           </span>
         )}
       </div>
@@ -201,6 +202,9 @@ export default function AdminPage() {
   const [bankList, setBankList] = useState<BankAccountResponse[] | null>(null);
   const [accountId, setAccountId] = useState("");
   const [singleAccount, setSingleAccount] = useState<BankAccountResponse | null>(null);
+  const [depositAccountId, setDepositAccountId] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositComment, setDepositComment] = useState("");
   const [txId, setTxId] = useState("");
   const [tx, setTx] = useState<TransactionResponse | null>(null);
 
@@ -223,6 +227,9 @@ export default function AdminPage() {
   const [ratesByDate, setRatesByDate] = useState<CurrencyRate[] | null>(null);
   const [syncDate, setSyncDate] = useState("");
 
+  const [settingsList, setSettingsList] = useState<AppSetting[] | null>(null);
+  const [settingEdits, setSettingEdits] = useState<Record<string, { value: string; description: string }>>({});
+
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError("");
@@ -236,7 +243,7 @@ export default function AdminPage() {
     }
   };
 
-  /** Профиль относится к полю UUID: либо совпадает с введённым id, либо профиль загружен только по email (поле UUID пустое). */
+  /** Профиль относится к полю UUID: либо совпадает с введённым id, либо профиль загружен только по Email (поле UUID пустое). */
   const userProfileMatchesInput =
     Boolean(profile) &&
     (userId ? profile!.user_id === userId : true);
@@ -256,7 +263,7 @@ export default function AdminPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Админ</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-            Операции по OpenAPI для роли ADMIN.
+            Операции из спецификации API для администратора.
           </p>
         </div>
 
@@ -360,7 +367,7 @@ export default function AdminPage() {
                           {a.account_id}
                         </p>
                         <div className="mt-1 flex items-center justify-between gap-2">
-                          <span className="text-xs text-slate-600 dark:text-slate-300">{a.account_type}</span>
+                          <span className="text-xs text-slate-600 dark:text-slate-300">{getAccountTypeName(a.account_type)}</span>
                           <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                             {formatCurrency(a.balance, a.currency)}
                           </span>
@@ -378,15 +385,14 @@ export default function AdminPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Пользователь по email</CardTitle>
+              <CardTitle>Пользователь по Email</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col sm:flex-row gap-2 sm:items-end">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value.trim())}
-                placeholder="Email"
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
               />
               <Button
                 variant="outline"
@@ -396,7 +402,7 @@ export default function AdminPage() {
                     const p = await adminApi.getUserProfileByEmail(email);
                     setProfile(p);
                     setUserId(p.user_id);
-                    setMessage("Профиль по email загружен.");
+                    setMessage("Профиль по Email загружен.");
                   })
                 }
               >
@@ -408,7 +414,7 @@ export default function AdminPage() {
 
         <AdminSection
           title="Счета"
-          subtitle="Операции просмотра счетов пользователя и конкретного счета."
+          subtitle="Просмотр счетов, блокировка и пополнение через POST /transactions/deposit (роль ADMIN)."
         >
           <Card>
             <CardHeader>
@@ -500,6 +506,90 @@ export default function AdminPage() {
                 )}
               </div>
               {singleAccount && <AccountCardAdmin account={singleAccount} />}
+            </CardContent>
+          </Card>
+
+          <Card accent>
+            <CardHeader>
+              <CardTitle>Пополнение счёта</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Тот же контракт, что в кабинете клиента: <span className="font-mono">POST /transactions/deposit</span> с{" "}
+                <span className="font-mono">transaction_type: DEPOSIT</span> и <span className="font-mono">receiver_id</span> — UUID
+                счёта. Валюта подставляется с бэка по счёту.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                    UUID счёта получателя
+                  </label>
+                  <input
+                    value={depositAccountId}
+                    onChange={(e) => setDepositAccountId(e.target.value.trim())}
+                    placeholder="UUID счёта"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Сумма</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                    Комментарий (необязательно)
+                  </label>
+                  <input
+                    value={depositComment}
+                    onChange={(e) => setDepositComment(e.target.value)}
+                    placeholder="Например: корректировка баланса"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                  />
+                </div>
+              </div>
+              <Button
+                disabled={busy || !depositAccountId || Number(depositAmount) <= 0}
+                onClick={() => {
+                  const id = depositAccountId.trim();
+                  const amt = Number(depositAmount);
+                  if (!id || !Number.isFinite(amt) || amt <= 0) return;
+                  if (!confirm(`Пополнить счёт ${id} на ${amt}?`)) return;
+                  void run(async () => {
+                    const acc = await adminApi.getBankAccount(id);
+                    const created = await transactionsApi.deposit({
+                      transaction_type: "DEPOSIT",
+                      amount: amt,
+                      currency: acc.currency,
+                      receiver_id: acc.account_id,
+                      comment: depositComment.trim() || undefined,
+                    });
+                    setMessage(
+                      `Пополнение выполнено: ${formatCurrency(created.amount, created.currency)} · ${created.transaction_date}${created.status ? ` · ${getTransactionStatusLabel(created.status)}` : ""}.`
+                    );
+                    if (singleAccount?.account_id === id) {
+                      const refreshed = await adminApi.getBankAccount(id);
+                      setSingleAccount(refreshed);
+                    }
+                    if (bankListUserId && bankList?.some((a) => a.account_id === id)) {
+                      const list = await adminApi.getBankAccountsByUserId(bankListUserId);
+                      setBankList(list);
+                    }
+                    if (userAccounts?.some((a) => a.account_id === id) && profile?.user_id) {
+                      const list = await adminApi.getUserAccounts(profile.user_id);
+                      setUserAccounts(list);
+                    }
+                  });
+                }}
+              >
+                Пополнить счёт
+              </Button>
             </CardContent>
           </Card>
         </AdminSection>
@@ -941,6 +1031,102 @@ export default function AdminPage() {
         </AdminSection>
 
         <AdminSection
+          title="Настройки приложения"
+          subtitle="Просмотр и изменение ключей и значений на сервере."
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Список настроек</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const data = await settingsApi.getAll();
+                      setSettingsList(data);
+                      const next: Record<string, { value: string; description: string }> = {};
+                      for (const s of data) {
+                        next[s.setting_key] = {
+                          value: s.setting_value ?? "",
+                          description: s.description ?? "",
+                        };
+                      }
+                      setSettingEdits(next);
+                      setMessage("Настройки загружены.");
+                    })
+                  }
+                >
+                  Загрузить все настройки
+                </Button>
+              </div>
+              {settingsList && settingsList.length > 0 ? (
+                <div className="space-y-4">
+                  {settingsList.map((s) => {
+                    const edit = settingEdits[s.setting_key] ?? {
+                      value: s.setting_value ?? "",
+                      description: s.description ?? "",
+                    };
+                    return (
+                      <div
+                        key={s.setting_key}
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2"
+                      >
+                        <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{s.setting_key}</p>
+                        <label className="block text-xs text-slate-500 dark:text-slate-400">Значение</label>
+                        <input
+                          value={edit.value}
+                          onChange={(e) =>
+                            setSettingEdits((prev) => ({
+                              ...prev,
+                              [s.setting_key]: { ...edit, value: e.target.value },
+                            }))
+                          }
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                        />
+                        <label className="block text-xs text-slate-500 dark:text-slate-400">Описание</label>
+                        <input
+                          value={edit.description}
+                          onChange={(e) =>
+                            setSettingEdits((prev) => ({
+                              ...prev,
+                              [s.setting_key]: { ...edit, description: e.target.value },
+                            }))
+                          }
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() =>
+                            run(async () => {
+                              await settingsApi.update(s.setting_key, {
+                                setting_value: edit.value,
+                                description: edit.description || undefined,
+                              });
+                              const data = await settingsApi.getAll();
+                              setSettingsList(data);
+                              setMessage(`Сохранено: ${s.setting_key}`);
+                            })
+                          }
+                        >
+                          Сохранить
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : settingsList && settingsList.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Список пуст.</p>
+              ) : null}
+            </CardContent>
+          </Card>
+        </AdminSection>
+
+        <AdminSection
           title="Документация"
           subtitle="Быстрые ссылки на документацию и OpenAPI спецификацию."
         >
@@ -955,7 +1141,7 @@ export default function AdminPage() {
                 rel="noopener noreferrer"
                 className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
               >
-                Swagger UI
+                Интерфейс Swagger
               </a>
               <a
                 href={OPENAPI_SPEC_URL}
@@ -963,7 +1149,7 @@ export default function AdminPage() {
                 rel="noopener noreferrer"
                 className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
               >
-                OpenAPI JSON
+                Спецификация OpenAPI (JSON)
               </a>
             </CardContent>
           </Card>

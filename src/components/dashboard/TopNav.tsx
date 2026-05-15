@@ -12,6 +12,8 @@ const baseNavItems = [
   { href: "/dashboard", label: "Главная" },
   { href: "/dashboard/accounts", label: "Вклады и счета" },
   { href: "/dashboard/transactions", label: "Платежи и переводы" },
+  { href: "/dashboard/savings", label: "Вклады" },
+  { href: "/dashboard/loans", label: "Кредит" },
 ];
 
 export function TopNav() {
