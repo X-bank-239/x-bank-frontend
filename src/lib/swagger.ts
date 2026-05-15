@@ -1,12 +1,6 @@
-function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/+$/, "");
-}
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
-const DEFAULT_API_BASE_URL = "https://4c5450410f2f.vps.myjino.ru/api";
-
-const API_BASE_URL = normalizeBaseUrl(
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL
-);
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Ссылки на документацию API (можно переопределить через env).
@@ -16,5 +10,3 @@ export const SWAGGER_UI_URL =
 
 export const OPENAPI_SPEC_URL =
   process.env.NEXT_PUBLIC_OPENAPI_SPEC_URL ?? `${API_BASE_URL}/v3/api-docs`;
-
-

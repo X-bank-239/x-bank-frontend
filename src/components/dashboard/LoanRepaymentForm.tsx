@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { loansApi } from "@/lib/api";
 import {
   assertLoanActiveForRepayment,
-  findActiveLoanForCreditAccount,
+  findActiveLoanForDebitAccount,
   mapLoanRepaymentApiError,
 } from "@/lib/loan-repayment";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,11 +13,12 @@ import type { LoanResponse } from "@/types";
 import { Button } from "@/components/ui";
 
 interface LoanRepaymentFormProps {
-  creditAccountId?: string;
+  /** Дебетовый счёт, привязанный к кредиту (зачисление и погашение). */
+  debitAccountId?: string;
   onRepaid?: (loan: LoanResponse) => void;
 }
 
-export function LoanRepaymentForm({ creditAccountId, onRepaid }: LoanRepaymentFormProps) {
+export function LoanRepaymentForm({ debitAccountId, onRepaid }: LoanRepaymentFormProps) {
   const { refreshUser } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +30,7 @@ export function LoanRepaymentForm({ creditAccountId, onRepaid }: LoanRepaymentFo
   const [loanListError, setLoanListError] = useState(false);
 
   useEffect(() => {
-    if (!creditAccountId) {
+    if (!debitAccountId) {
       setLoanList(null);
       setLoanListError(false);
       return;
@@ -54,15 +55,14 @@ export function LoanRepaymentForm({ creditAccountId, onRepaid }: LoanRepaymentFo
     return () => {
       cancelled = true;
     };
-  }, [creditAccountId]);
+  }, [debitAccountId]);
 
   const activeLoanFromList =
-    loanList && creditAccountId
-      ? findActiveLoanForCreditAccount(loanList, creditAccountId)
+    loanList && debitAccountId
+      ? findActiveLoanForDebitAccount(loanList, debitAccountId)
       : undefined;
-  /** Список успешно загружен и по счёту точно нет активного кредита. */
   const noActiveLoanKnown =
-    Boolean(creditAccountId) &&
+    Boolean(debitAccountId) &&
     loanList !== null &&
     !loanListError &&
     !activeLoanFromList;
@@ -129,14 +129,14 @@ export function LoanRepaymentForm({ creditAccountId, onRepaid }: LoanRepaymentFo
           variant="outline"
           disabled={
             busy ||
-            !creditAccountId ||
+            !debitAccountId ||
             loanListLoading ||
             noActiveLoanKnown
           }
           onClick={() =>
             run(async () => {
-              if (!creditAccountId) return;
-              const data = await loansApi.get(creditAccountId);
+              if (!debitAccountId) return;
+              const data = await loansApi.get(debitAccountId);
               assertLoanActiveForRepayment(data);
               const amount = data.monthlyPayment;
               setRepayMode("MONTHLY");
@@ -152,16 +152,16 @@ export function LoanRepaymentForm({ creditAccountId, onRepaid }: LoanRepaymentFo
           className="border-amber-200 text-amber-800 hover:bg-amber-50 dark:border-amber-900 dark:text-amber-400 dark:hover:bg-amber-950/40"
           disabled={
             busy ||
-            !creditAccountId ||
+            !debitAccountId ||
             loanListLoading ||
             noActiveLoanKnown
           }
           onClick={() =>
             run(async () => {
-              if (!creditAccountId) return;
-              const loan = await loansApi.get(creditAccountId);
+              if (!debitAccountId) return;
+              const loan = await loansApi.get(debitAccountId);
               assertLoanActiveForRepayment(loan);
-              const cost = await loansApi.fullPaymentCost(creditAccountId);
+              const cost = await loansApi.fullPaymentCost(debitAccountId);
               setRepayMode("EARLY");
               setRepayAmount(String(cost.amount));
               setMessage("Подставлена сумма полного досрочного погашения.");
@@ -173,21 +173,21 @@ export function LoanRepaymentForm({ creditAccountId, onRepaid }: LoanRepaymentFo
         <Button
           disabled={
             busy ||
-            !creditAccountId ||
+            !debitAccountId ||
             loanListLoading ||
             noActiveLoanKnown ||
             Number(repayAmount) <= 0
           }
           onClick={() =>
             run(async () => {
-              if (!creditAccountId) return;
-              const current = await loansApi.get(creditAccountId);
+              if (!debitAccountId) return;
+              const current = await loansApi.get(debitAccountId);
               assertLoanActiveForRepayment(current);
               const amount = Number(repayAmount);
               const updated =
                 repayMode === "MONTHLY"
-                  ? await loansApi.repayMonthly(creditAccountId, { amount })
-                  : await loansApi.repayEarly(creditAccountId, { amount });
+                  ? await loansApi.repayMonthly(debitAccountId, { amount })
+                  : await loansApi.repayEarly(debitAccountId, { amount });
               setMessage(
                 repayMode === "MONTHLY"
                   ? "Ежемесячный платёж выполнен."

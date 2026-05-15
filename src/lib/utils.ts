@@ -1,4 +1,4 @@
-import { Currency, AccountType, TransactionType } from "@/types";
+import type { Currency, AccountType, LoanStatus, TransactionType } from "@/types";
 
 /**
  * Format currency amount with symbol (единый формат: знак после числа, запятая как разделитель)
@@ -31,6 +31,7 @@ export function getAccountTypeName(type: AccountType): string {
   const names: Record<AccountType, string> = {
     CREDIT: "Кредитный",
     DEBIT: "Дебетовый",
+    SAVINGS: "Накопительный",
   };
   return names[type];
 }
@@ -98,10 +99,48 @@ export function getAccountCardAccent(currency: Currency): string {
   return accents[currency];
 }
 
-/**
- * Mask account ID for display
- */
+/** Статус кредита для экрана */
+export function getLoanStatusLabel(status: LoanStatus): string {
+  switch (status) {
+    case "ACTIVE":
+      return "Активен";
+    case "CLOSED":
+      return "Закрыт";
+    default:
+      return status ? `Неизвестный статус (${status})` : "—";
+  }
+}
 
+/** Статус вклада, если API отдаёт enum латиницей */
+export function getSavingsStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    ACTIVE: "Активен",
+    OPEN: "Открыт",
+    CLOSED: "Закрыт",
+    MATURED: "Срок истёк",
+    PENDING: "В обработке",
+  };
+  return map[status] ?? status;
+}
+
+/** Статус транзакции */
+export function getTransactionStatusLabel(status: string | undefined): string {
+  if (!status) return "—";
+  const map: Record<string, string> = {
+    PENDING: "В обработке",
+    COMPLETED: "Исполнена",
+    CANCELLED: "Отменена",
+    FAILED: "Ошибка",
+  };
+  return map[status] ?? status;
+}
+
+/** Роль пользователя */
+export function getUserRoleLabel(role: string | undefined): string {
+  if (role === "ADMIN") return "Администратор";
+  if (role === "USER") return "Пользователь";
+  return role ?? "—";
+}
 
 /**
  * Combine class names

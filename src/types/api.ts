@@ -1,8 +1,8 @@
-// API Types generated from OpenAPI schema
+// API Types aligned with OpenAPI (X-Bank)
 
 // Enums
 export type Currency = "RUB" | "USD" | "EUR" | "CNY";
-export type AccountType = "CREDIT" | "DEBIT";
+export type AccountType = "CREDIT" | "DEBIT" | "SAVINGS";
 export type TransactionType = "PAYMENT" | "TRANSFER" | "DEPOSIT";
 
 // Request types
@@ -73,8 +73,6 @@ export interface UserProfileResponse {
   accounts: BankAccountResponse[];
   role?: UserRole;
   active?: boolean;
-  roles?: string[];
-  is_admin?: boolean;
 }
 
 export interface Transaction {
@@ -87,9 +85,7 @@ export interface Transaction {
   transaction_date: string; // ISO date-time
   comment?: string;
   status?: TransactionStatus;
-  /** Код категории транзакции (если задан на бэкенде) */
   category?: string;
-  /** Комиссия (если применяется) */
   commission?: number;
 }
 
@@ -106,9 +102,7 @@ export interface TransactionResponse {
   transaction_date: string; // ISO date-time
   comment?: string;
   status?: TransactionStatus;
-  /** Код категории транзакции */
   category?: string;
-  /** Комиссия (если применяется) */
   commission?: number;
 }
 
@@ -121,6 +115,7 @@ export interface RecentTransactionsResponse {
 
 export interface LoginInitResponse {
   requires2fa?: boolean;
+  /** OpenAPI: tempToken */
   tempToken?: string;
   email?: string;
 }
@@ -145,8 +140,9 @@ export interface UpdateCurrencyRateRequest {
   comment?: string;
 }
 
+/** POST /loans/create (OpenAPI: camelCase). */
 export interface CreateLoanRequest {
-  creditAccountId: string;
+  debitAccountId: string;
   principalAmount: number;
   termMonths: number;
 }
@@ -161,10 +157,12 @@ export interface LoanPaymentAmountResponse {
 
 export type LoanStatus = "ACTIVE" | "CLOSED";
 
+/** Кредит наличными (OpenAPI LoanResponse, camelCase). */
 export interface LoanResponse {
   loanId: string;
-  creditAccountId: string;
+  debitAccountId: string;
   serviceAccountId: string;
+  autopayEnabled: boolean;
   currency: Currency;
   principalAmount: number;
   annualInterestRate: number;
@@ -207,6 +205,51 @@ export interface TransactionKeyword {
   word: string;
   categoryCode: string;
   createdAt?: string;
+}
+
+/** POST /savings/prolong/{accountId} (query). */
+export interface ProlongSavingsRequest {
+  new_maturity_date: string;
+}
+
+/** DELETE /savings/close/{accountId} (query). */
+export interface CloseSavingsRequest {
+  target_account_id: string;
+}
+
+/** Параметры открытия вклада (на бэке часто маппятся в path-шаблон create/…/…/…/…). */
+export interface CreateSavingsAccountRequest {
+  account_id: string;
+  maturity_date: string;
+  allow_withdrawal: boolean;
+  allow_top_up: boolean;
+}
+
+/** Ответ API вклада (OpenAPI: camelCase). */
+export interface SavingsAccount {
+  accountId: string;
+  accruedInterest: number;
+  interestRate: number;
+  maturityDate: string;
+  lastInterestCalculation: string;
+  allowWithdrawal: boolean;
+  allowTopUp: boolean;
+  earlyWithdrawalPenalty: number;
+  status: string;
+  autoProlong: boolean;
+}
+
+export interface AppSetting {
+  setting_key: string;
+  setting_value: string;
+  description?: string;
+  updated_at?: string;
+  updated_by: string;
+}
+
+export interface UpdateAppSettingRequest {
+  setting_value?: string;
+  description?: string;
 }
 
 // Auth response (login returns a token)

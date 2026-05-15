@@ -2,16 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { AccountCard, AccountQuickActionsModal } from "@/components/dashboard";
-import { Card, CardContent } from "@/components/ui";
+import {
+  AccountCard,
+  AccountQuickActionsModal,
+  AllAccountsSpendingSection,
+} from "@/components/dashboard";
+import { Card, CardContent, Button } from "@/components/ui";
 import Link from "next/link";
 import { loansApi } from "@/lib/api";
 import type { BankAccountResponse, LoanResponse } from "@/types";
+import { formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
   const [loans, setLoans] = useState<LoanResponse[]>([]);
+
+  const [loansExpanded, setLoansExpanded] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -24,13 +31,16 @@ export default function DashboardPage() {
     })();
   }, []);
 
-  const nextPaymentByCreditAccountId = useMemo(() => {
+  const nextPaymentByAccountId = useMemo(() => {
     const map = new Map<string, string>();
     for (const loan of loans) {
-      map.set(loan.creditAccountId, loan.nextPaymentDate);
+      if (loan.status !== "ACTIVE") continue;
+      map.set(loan.debitAccountId, loan.nextPaymentDate);
     }
     return map;
   }, [loans]);
+
+  const loansToShow = loans.length > 5 && !loansExpanded ? loans.slice(0, 5) : loans;
 
   // const totalBalance = user?.accounts?.reduce((sum, acc) => {
   //   const rates: Record<string, number> = {
@@ -85,7 +95,7 @@ export default function DashboardPage() {
             </span>
             </Link>
             <Link
-                href="/dashboard/transactions"
+                href="/dashboard/loans"
                 className="flex flex-col items-center gap-2 rounded-xl bg-white dark:bg-slate-900 p-4 sm:p-5 border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
@@ -94,11 +104,84 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <span className="text-center text-sm font-medium text-slate-800 dark:text-slate-100">
-              Платежи
+              Кредит
             </span>
             </Link>
           </div>
         </section>
+
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+              Данные кредита
+            </h2>
+            <Link
+              href="/dashboard/loans"
+              className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700"
+            >
+              Кредит
+            </Link>
+          </div>
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardContent className="pt-5 pb-5">
+              {loans.length === 0 ? (
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Кредитов нет. Оформление и погашение — в разделе{" "}
+                  <Link
+                    href="/dashboard/loans"
+                    className="font-medium text-primary-600 dark:text-primary-400 underline"
+                  >
+                    Кредит
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {loansToShow.map((loan) => (
+                    <li
+                      key={loan.loanId}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 px-4 py-3 text-sm"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <p className="font-medium text-slate-800 dark:text-slate-100">
+                          Остаток: {formatCurrency(loan.outstandingPrincipal, loan.currency)} ·{" "}
+                          {loan.currency}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {getLoanStatusLabel(loan.status)}
+                          {loan.status === "ACTIVE" && loan.nextPaymentDate ? (
+                            <>
+                              {" "}
+                              · Платёж: {loan.nextPaymentDate.slice(0, 10)} · Платёж в месяц:{" "}
+                              {formatCurrency(loan.monthlyPayment, loan.currency)}
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                      <span className="font-mono text-[11px] text-slate-400 shrink-0">
+                        {loan.loanId.slice(0, 8)}…
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {loans.length > 5 ? (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLoansExpanded((v) => !v)}
+                  >
+                    {loansExpanded ? "Свернуть" : `Показать все кредиты (${loans.length})`}
+                  </Button>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </section>
+
+        <AllAccountsSpendingSection />
 
         {/* Мои счета / Вклады и счета — как в Сбере */}
         <section>
@@ -121,7 +204,7 @@ export default function DashboardPage() {
                     key={account.account_id}
                     account={account}
                     variant="minimal"
-                    nextPaymentDate={nextPaymentByCreditAccountId.get(account.account_id)}
+                    nextPaymentDate={nextPaymentByAccountId.get(account.account_id)}
                     onClick={() => setSelectedAccount(account)}
                   />
                 ))}
@@ -168,7 +251,7 @@ export default function DashboardPage() {
         onClose={() => setSelectedAccount(null)}
         nextPaymentDate={
           selectedAccount
-            ? nextPaymentByCreditAccountId.get(selectedAccount.account_id)
+            ? nextPaymentByAccountId.get(selectedAccount.account_id)
             : undefined
         }
       />

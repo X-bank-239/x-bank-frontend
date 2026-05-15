@@ -3,8 +3,9 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "X-Bank - Современный онлайн-банк",
-  description: "Управляйте своими финансами с X-Bank. Переводы, платежи, счета в разных валютах.",
+  title: "X-Bank — современный онлайн-банк",
+  description:
+    "Управляйте финансами в X-Bank: переводы, платежи и счета в разных валютах.",
 };
 
 export default function RootLayout({

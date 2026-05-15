@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { accountsApi, loansApi } from "@/lib/api";
 import { AccountCard, AccountQuickActionsModal } from "@/components/dashboard";
@@ -17,18 +16,12 @@ export default function AccountsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [createdLoanId, setCreatedLoanId] = useState("");
-  const [createdLoanAnnualRate, setCreatedLoanAnnualRate] = useState<number | null>(null);
   const [newAccount, setNewAccount] = useState<{
     currency: Currency;
     account_type: AccountType;
   }>({
     currency: "RUB",
     account_type: "DEBIT",
-  });
-  const [creditParams, setCreditParams] = useState({
-    principalAmount: "100000",
-    termMonths: "12",
   });
   const [loans, setLoans] = useState<LoanResponse[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
@@ -44,18 +37,20 @@ export default function AccountsPage() {
     })();
   }, []);
 
-  const nextPaymentByCreditAccountId = useMemo(() => {
+  const nextPaymentByAccountId = useMemo(() => {
     const map = new Map<string, string>();
     for (const loan of loans) {
-      map.set(loan.creditAccountId, loan.nextPaymentDate);
+      if (loan.status !== "ACTIVE") continue;
+      map.set(loan.debitAccountId, loan.nextPaymentDate);
     }
     return map;
   }, [loans]);
 
-  const annualRateByCreditAccountId = useMemo(() => {
+  const annualRateByAccountId = useMemo(() => {
     const map = new Map<string, number>();
     for (const loan of loans) {
-      map.set(loan.creditAccountId, loan.annualInterestRate);
+      if (loan.status !== "ACTIVE") continue;
+      map.set(loan.debitAccountId, loan.annualInterestRate);
     }
     return map;
   }, [loans]);
@@ -63,38 +58,18 @@ export default function AccountsPage() {
   const handleCreateAccount = async () => {
     setIsLoading(true);
     setError("");
-    setCreatedLoanId("");
-    setCreatedLoanAnnualRate(null);
 
     try {
-      const isCreditCreation = newAccount.account_type === "CREDIT";
-      const createdAccount = await accountsApi.create(newAccount);
-
-      if (isCreditCreation) {
-        const principalAmount = Number(creditParams.principalAmount);
-        const termMonths = Number(creditParams.termMonths);
-        if (!(principalAmount > 0) || !(termMonths > 0)) {
-          throw new Error("Укажите корректные параметры кредита (сумма и срок)");
-        }
-        const loan = await loansApi.create({
-          creditAccountId: createdAccount.account_id,
-          principalAmount,
-          termMonths,
-        });
-        setLoans((prev) => [loan, ...prev.filter((x) => x.loanId !== loan.loanId)]);
-        setCreatedLoanId(loan.loanId);
-        setCreatedLoanAnnualRate(loan.annualInterestRate);
-      }
-
+      const createdAccount = await accountsApi.create({
+        currency: newAccount.currency,
+        account_type: newAccount.account_type,
+      });
       await refreshUser();
-      if (isCreditCreation) {
-        // Оставляем модалку открытой, чтобы пользователь сразу увидел ставку.
-        setNewAccount((prev) => ({ ...prev, currency: createdAccount.currency }));
-      } else {
-        setIsCreating(false);
-        setNewAccount({ currency: "RUB", account_type: "DEBIT" });
-      }
-      setCreditParams({ principalAmount: "100000", termMonths: "12" });
+      setIsCreating(false);
+      setNewAccount({
+        currency: createdAccount.currency,
+        account_type: "DEBIT",
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка создания счёта");
     } finally {
@@ -129,28 +104,6 @@ export default function AccountsPage() {
                         {error}
                       </div>
                   )}
-                  {createdLoanId && (
-                    <div className="mb-4 p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg text-teal-800 dark:text-teal-300 text-sm">
-                      Кредит оформлен. ID кредита:{" "}
-                      <code className="text-xs bg-white/60 dark:bg-slate-900/30 px-1 rounded">
-                        {createdLoanId}
-                      </code>
-                      {typeof createdLoanAnnualRate === "number" && (
-                        <>
-                          {" "}• Ставка: {Math.round(createdLoanAnnualRate * 10000) / 100}% годовых
-                        </>
-                      )}
-                      . Управление — в разделе{" "}
-                      <Link
-                        href="/dashboard/loans"
-                        className="font-medium text-primary-600 dark:text-primary-400 underline"
-                      >
-                        Кредиты
-                      </Link>
-                      .
-                    </div>
-                  )}
-
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -188,8 +141,6 @@ export default function AccountsPage() {
                                 type="button"
                                 onClick={() => {
                                   setNewAccount((prev) => ({ ...prev, account_type: type }));
-                                  setCreatedLoanId("");
-                                  setCreatedLoanAnnualRate(null);
                                 }}
                                 className={`px-4 py-3 rounded-lg border-2 font-medium transition-all text-sm ${
                                     newAccount.account_type === type
@@ -202,53 +153,6 @@ export default function AccountsPage() {
                         ))}
                       </div>
                     </div>
-
-                    {newAccount.account_type === "CREDIT" && (
-                      <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <p className="text-xs font-medium text-slate-500">Параметры кредита</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                              Сумма
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={creditParams.principalAmount}
-                              onChange={(e) =>
-                                setCreditParams((p) => ({ ...p, principalAmount: e.target.value }))
-                              }
-                              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                              Срок (мес.)
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={creditParams.termMonths}
-                              onChange={(e) =>
-                                setCreditParams((p) => ({ ...p, termMonths: e.target.value }))
-                              }
-                              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          После открытия кредитного счёта кредит будет создан автоматически.
-                        </p>
-                        {typeof createdLoanAnnualRate === "number" && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Процентная ставка по последнему оформленному кредиту:{" "}
-                            {Math.round(createdLoanAnnualRate * 10000) / 100}% годовых.
-                          </p>
-                        )}
-                      </div>
-                    )}
 
                     <div className="flex gap-3 pt-4">
                       <Button
@@ -278,8 +182,8 @@ export default function AccountsPage() {
                   <AccountCard
                     key={account.account_id}
                     account={account}
-                    nextPaymentDate={nextPaymentByCreditAccountId.get(account.account_id)}
-                    annualInterestRate={annualRateByCreditAccountId.get(account.account_id)}
+                    nextPaymentDate={nextPaymentByAccountId.get(account.account_id)}
+                    annualInterestRate={annualRateByAccountId.get(account.account_id)}
                     onClick={() => setSelectedAccount(account)}
                   />
               ))}
@@ -351,12 +255,12 @@ export default function AccountsPage() {
           onClose={() => setSelectedAccount(null)}
           nextPaymentDate={
             selectedAccount
-              ? nextPaymentByCreditAccountId.get(selectedAccount.account_id)
+              ? nextPaymentByAccountId.get(selectedAccount.account_id)
               : undefined
           }
           annualInterestRate={
             selectedAccount
-              ? annualRateByCreditAccountId.get(selectedAccount.account_id)
+              ? annualRateByAccountId.get(selectedAccount.account_id)
               : undefined
           }
         />

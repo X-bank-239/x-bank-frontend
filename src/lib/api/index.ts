@@ -7,3 +7,5 @@ export { adminApi } from "./admin";
 export { cbrApi } from "./cbr";
 export { categoriesApi } from "./categories";
 export { keywordsApi } from "./keywords";
+export { savingsApi } from "./savings";
+export { settingsApi } from "./settings";

@@ -25,6 +25,9 @@ export function AccountQuickActionsModal({
   nextPaymentDate,
   annualInterestRate,
 }: AccountQuickActionsModalProps) {
+  const hasActiveLoanDetails =
+    Boolean(nextPaymentDate) || typeof annualInterestRate === "number";
+
   useEffect(() => {
     if (!open) return;
     const handleEsc = (event: KeyboardEvent) => {
@@ -57,12 +60,12 @@ export function AccountQuickActionsModal({
               <p className="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">
                 {formatCurrency(account.balance, account.currency)}
               </p>
-              {account.account_type === "CREDIT" && nextPaymentDate && (
+              {hasActiveLoanDetails && nextPaymentDate && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   След. платеж: {nextPaymentDate}
                 </p>
               )}
-              {account.account_type === "CREDIT" && typeof annualInterestRate === "number" && (
+              {hasActiveLoanDetails && typeof annualInterestRate === "number" && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
                 </p>
@@ -104,7 +107,7 @@ export function AccountQuickActionsModal({
                 onClick={onClose}
                 className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
               >
-                Платеж
+                Платёж
               </Link>
               <Link
                 href={`/dashboard/transactions?account=${account.account_id}&tab=history`}
@@ -116,12 +119,12 @@ export function AccountQuickActionsModal({
             </div>
           </div>
 
-          {account.account_type === "CREDIT" && (
+          {hasActiveLoanDetails && (
             <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3 mt-3">
                 Погашение кредита
               </p>
-              <LoanRepaymentForm creditAccountId={account.account_id} />
+              <LoanRepaymentForm debitAccountId={account.account_id} />
             </div>
           )}
         </CardContent>

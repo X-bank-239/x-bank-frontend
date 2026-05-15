@@ -9,13 +9,13 @@ export function assertLoanActiveForRepayment(loan: LoanResponse): void {
   }
 }
 
-/** Активный кредит по кредитному счёту (по данным списка `/loans/list`). */
-export function findActiveLoanForCreditAccount(
+/** Активный кредит по дебетовому счёту зачисления/погашения (GET /loans/accounts/{accountId}). */
+export function findActiveLoanForDebitAccount(
   loans: LoanResponse[],
-  creditAccountId: string
+  debitAccountId: string
 ): LoanResponse | undefined {
   return loans.find(
-    (l) => l.creditAccountId === creditAccountId && l.status === "ACTIVE"
+    (l) => l.debitAccountId === debitAccountId && l.status === "ACTIVE"
   );
 }
 
@@ -29,8 +29,20 @@ export function isNoActiveLoanApiMessage(message: string): boolean {
 
 /** Понятное сообщение для UI вместо сырого текста бэкенда. */
 export function mapLoanRepaymentApiError(message: string): string {
-  if (isNoActiveLoanApiMessage(message)) {
+  const normalized = message.trim();
+  if (isNoActiveLoanApiMessage(normalized)) {
     return NO_ACTIVE_LOAN_USER_MESSAGE;
+  }
+  const englishFixes: [RegExp, string][] = [
+    [/insufficient\s+funds/i, "Недостаточно средств на счёте."],
+    [/loan\s+not\s+found/i, "Кредит не найден."],
+    [/invalid\s+amount/i, "Некорректная сумма."],
+    [/amount\s+must\s+be\s+positive/i, "Сумма должна быть больше нуля."],
+    [/unauthorized/i, "Требуется повторный вход."],
+    [/forbidden/i, "Недостаточно прав для операции."],
+  ];
+  for (const [re, ru] of englishFixes) {
+    if (re.test(normalized)) return ru;
   }
   return message;
 }

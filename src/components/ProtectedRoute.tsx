@@ -23,7 +23,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-primary-200 dark:border-primary-800 border-t-primary-600 rounded-full animate-spin"></div>
-          <p className="text-gray-500 dark:text-gray-400">Загрузка...</p>
+          <p className="text-gray-500 dark:text-gray-400">Загрузка…</p>
         </div>
       </div>
     );

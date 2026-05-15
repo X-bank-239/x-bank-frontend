@@ -25,8 +25,12 @@ export const accountsApi = {
    * Get all accounts for a user
    */
   async getByUserId(userId: string): Promise<BankAccountResponse[]> {
-    // OpenAPI: GET /bank-account/list/{userId}
-    return apiClient.get<BankAccountResponse[]>(`/bank-account/list/${userId}`);
+    // OpenAPI: GET /bank-account/list/{userId} (в схеме иногда один объект — нормализуем в массив)
+    const raw = await apiClient.get<BankAccountResponse | BankAccountResponse[]>(
+      `/bank-account/list/${userId}`
+    );
+    if (Array.isArray(raw)) return raw;
+    return raw ? [raw] : [];
   },
 
   /**

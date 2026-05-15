@@ -33,9 +33,7 @@ function pickTokenFromBodyOrHeaders(body: AuthResponse): string | null {
 }
 
 export const authApi = {
-  /**
-   * Login user with email and password
-   */
+  /** Вход по email и паролю (OpenAPI: POST /user/login). */
   async login(
     data: AuthUserRequest
   ): Promise<{ token?: string; tempToken?: string; requires2fa?: boolean; email?: string; user_id?: string }> {
@@ -83,7 +81,7 @@ export const authApi = {
       );
       const token = pickTokenFromBodyOrHeaders(authResponse);
       if (!token) {
-        throw new Error("Токен не получен после подтверждения 2FA");
+        throw new Error("Токен не получен после подтверждения второго фактора");
       }
       return { token };
     } finally {
@@ -93,40 +91,29 @@ export const authApi = {
     }
   },
 
-  /**
-   * Register a new user
-   */
+  /** Регистрация нового пользователя. */
   async register(data: CreateUserRequest): Promise<UserProfileResponse> {
     return apiClient.post<UserProfileResponse>("/user/create", data);
   },
 
-  /**
-   * Change current user password
-   */
+  /** Смена пароля текущего пользователя. */
   async changePassword(data: UpdatePasswordRequest): Promise<void> {
     return apiClient.put<void>("/user/change-password", data);
   },
 
-  /**
-   * Get user profile by ID
-   */
+  /** Профиль по идентификатору пользователя. */
   async getProfile(userId: string): Promise<UserProfileResponse> {
     // OpenAPI: GET /user/{userId}
     return apiClient.get<UserProfileResponse>(`/user/${userId}`);
   },
 
-  /**
-   * Get user profile by email
-   */
+  /** Профиль по Email (OpenAPI: GET /user/email/{email}). */
   async getProfileByEmail(email: string): Promise<UserProfileResponse> {
     // OpenAPI: GET /user/email/{email}
     return apiClient.get<UserProfileResponse>(`/user/email/${email}`);
   },
 
-  /**
-   * Get current authenticated user profile
-   * OpenAPI: GET /user/me
-   */
+  /** Текущий авторизованный пользователь (OpenAPI: GET /user/me). */
   async getMe(): Promise<UserProfileResponse> {
     return apiClient.get<UserProfileResponse>("/user/me");
   },

@@ -15,48 +15,76 @@ export const loansApi = {
     return apiClient.post<LoanResponse>("/loans/create", data);
   },
 
-  getByCreditAccount(creditAccountId: string): Promise<LoanResponse> {
-    return apiClient.get<LoanResponse>(
-      `/loans/get-by-credit-account/${creditAccountId}`
-    );
+  getByLoanId(loanId: string): Promise<LoanResponse> {
+    return apiClient.get<LoanResponse>(`/loans/${loanId}`);
   },
 
-  // Совместимость с текущими экранами: `get(id)` трактуем как creditAccountId.
-  get(creditAccountId: string): Promise<LoanResponse> {
-    return this.getByCreditAccount(creditAccountId);
+  /** GET /loans/accounts/{accountId} — кредит по дебетовому счёту. */
+  get(accountId: string): Promise<LoanResponse> {
+    return apiClient.get<LoanResponse>(`/loans/accounts/${accountId}`);
   },
 
-  repayMonthly(
-    creditAccountId: string,
-    data: LoanRepaymentRequest
-  ): Promise<LoanResponse> {
-    return apiClient.post<LoanResponse>(
-      `/loans/credit-accounts/${creditAccountId}/repay/monthly`,
-      { amount: data.amount }
-    );
+  repayMonthlyByLoan(loanId: string, data: LoanRepaymentRequest): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/${loanId}/repay/monthly`, data);
   },
 
-  repayEarly(
-    creditAccountId: string,
-    data: LoanRepaymentRequest
-  ): Promise<LoanResponse> {
-    return apiClient.post<LoanResponse>(
-      `/loans/credit-accounts/${creditAccountId}/repay/early`,
-      { amount: data.amount }
-    );
+  repayEarlyByLoan(loanId: string, data: LoanRepaymentRequest): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/${loanId}/repay/early`, data);
   },
 
-  monthlyPaymentCost(
-    creditAccountId: string
-  ): Promise<LoanPaymentAmountResponse> {
+  monthlyPaymentCostByLoan(loanId: string): Promise<LoanPaymentAmountResponse> {
     return apiClient.post<LoanPaymentAmountResponse>(
-      `/loans/credit-accounts/${creditAccountId}/payment-cost/monthly`
+      `/loans/${loanId}/payment-cost/monthly`
     );
   },
 
-  fullPaymentCost(creditAccountId: string): Promise<LoanPaymentAmountResponse> {
+  fullPaymentCostByLoan(loanId: string): Promise<LoanPaymentAmountResponse> {
     return apiClient.post<LoanPaymentAmountResponse>(
-      `/loans/credit-accounts/${creditAccountId}/payment-cost/early`
+      `/loans/${loanId}/payment-cost/early`
     );
+  },
+
+  getAutopayStatusByLoan(loanId: string): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/${loanId}/autopay/status`);
+  },
+
+  enableAutopayByLoan(loanId: string): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/${loanId}/autopay/enable`);
+  },
+
+  disableAutopayByLoan(loanId: string): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/${loanId}/autopay/disable`);
+  },
+
+  repayMonthly(accountId: string, data: LoanRepaymentRequest): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/accounts/${accountId}/repay/monthly`, data);
+  },
+
+  repayEarly(accountId: string, data: LoanRepaymentRequest): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/accounts/${accountId}/repay/early`, data);
+  },
+
+  monthlyPaymentCost(accountId: string): Promise<LoanPaymentAmountResponse> {
+    return apiClient.post<LoanPaymentAmountResponse>(
+      `/loans/accounts/${accountId}/payment-cost/monthly`
+    );
+  },
+
+  fullPaymentCost(accountId: string): Promise<LoanPaymentAmountResponse> {
+    return apiClient.post<LoanPaymentAmountResponse>(
+      `/loans/accounts/${accountId}/payment-cost/early`
+    );
+  },
+
+  getAutopayStatusByAccount(accountId: string): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/accounts/${accountId}/autopay/status`);
+  },
+
+  enableAutopayByAccount(accountId: string): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/accounts/${accountId}/autopay/enable`);
+  },
+
+  disableAutopayByAccount(accountId: string): Promise<LoanResponse> {
+    return apiClient.post<LoanResponse>(`/loans/accounts/${accountId}/autopay/disable`);
   },
 };

@@ -71,9 +71,9 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-card p-8">
-          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">Создать аккаунт</h1>
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-1">Регистрация</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-            Заполните форму для регистрации
+            Заполните форму, чтобы создать учётную запись
           </p>
 
           {error && (
@@ -126,8 +126,7 @@ export default function RegisterPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                placeholder="example@email.com"
+                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 required
               />
             </div>
@@ -184,7 +183,7 @@ export default function RegisterPage() {
               disabled={isSubmitting}
               className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white py-2.5 rounded-lg font-medium transition-colors"
             >
-              {isSubmitting ? "Создание аккаунта..." : "Зарегистрироваться"}
+              {isSubmitting ? "Создание учётной записи..." : "Зарегистрироваться"}
             </button>
           </form>
 

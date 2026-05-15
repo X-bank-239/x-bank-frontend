@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await authApi.getMe();
       setUser(profile);
     } catch (error) {
-      console.error("Failed to load user:", error);
+      console.error("Не удалось загрузить профиль:", error);
       localStorage.removeItem("auth_token");
       localStorage.removeItem("user_id");
     } finally {
@@ -79,10 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       throw new Error(
-        "Сервер не вернул ни временный токен 2FA, ни итоговый JWT. Проверьте /user/login."
+        "Сервер не вернул ни временный код подтверждения, ни итоговый токен входа. Проверьте ответ сервера при входе."
       );
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Ошибка входа:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user_id", profile.user_id);
       router.push("/dashboard");
     } catch (error) {
-      console.error("2FA verification error:", error);
+      console.error("Ошибка подтверждения входа:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("Хук useAuth можно использовать только внутри AuthProvider.");
   }
   return context;
 }
