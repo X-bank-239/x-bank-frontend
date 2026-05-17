@@ -7,6 +7,11 @@ import type {
 } from "@/types";
 
 export const loansApi = {
+  /** GET /loans/rate — годовая ставка до оформления кредита. */
+  getRate(): Promise<number> {
+    return apiClient.get<number>("/loans/rate");
+  },
+
   list(): Promise<LoanResponse[]> {
     return apiClient.get<LoanResponse[]>("/loans/list");
   },
