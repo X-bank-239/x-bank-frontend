@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { transactionsApi } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
+import { AccountsSpendingCharts } from "@/components/dashboard";
 import {
   Currency,
   TransactionType,
@@ -14,6 +15,7 @@ import {
 import {
   formatCurrency,
   formatShortDate,
+  getAccountTypeName,
   getTransactionTypeName,
   cn,
 } from "@/lib/utils";
@@ -67,6 +69,7 @@ export default function TransactionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [chartsRefreshKey, setChartsRefreshKey] = useState(0);
 
   // Set first account as selected by default
   useEffect(() => {
@@ -157,6 +160,7 @@ export default function TransactionsPage() {
       setAmount("");
       setReceiverEmail("");
       setComment("");
+      setChartsRefreshKey((k) => k + 1);
       await refreshUser();
       
       const updatedAccount = user?.accounts?.find(
@@ -251,6 +255,30 @@ export default function TransactionsPage() {
         </Card>
       )}
 
+      {selectedAccount && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>
+              Диаграмма · {getAccountTypeName(selectedAccount.account_type)}{" "}
+              {selectedAccount.currency}
+            </CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-1">
+              Движения средств за 7 дней (
+              {formatCurrency(selectedAccount.balance, selectedAccount.currency)}).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <AccountsSpendingCharts
+              key={selectedAccount.account_id}
+              accounts={[selectedAccount]}
+              mode="perAccount"
+              refreshKey={chartsRefreshKey}
+              emptyMessage="Нет операций за последние 7 дней по этому счёту."
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {tabs.map((tab) => (
           <button
@@ -283,6 +311,7 @@ export default function TransactionsPage() {
         <>
           {/* History Tab */}
           {activeTab === "history" && (
+            <>
             <Card>
               <CardHeader>
                 <CardTitle>История операций</CardTitle>
@@ -467,6 +496,7 @@ export default function TransactionsPage() {
                 )}
               </CardContent>
             </Card>
+            </>
           )}
 
           {/* Transfer Tab */}

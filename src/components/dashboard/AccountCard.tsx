@@ -4,6 +4,8 @@ import Link from "next/link";
 import { BankAccountResponse } from "@/types";
 import {
   formatCurrency,
+  formatLoanInterestRateText,
+  formatSavingsInterestRateText,
   getAccountTypeName,
   getAccountCardGradient,
   getAccountCardAccent,
@@ -14,6 +16,8 @@ interface AccountCardProps {
   account: BankAccountResponse;
   nextPaymentDate?: string;
   annualInterestRate?: number;
+  /** Ставка по вкладу, % годовых (из SavingsAccount.interestRate). */
+  savingsInterestRate?: number;
   onClick?: () => void;
   /** Вариант: карточка с градиентом (как карта) или минималистичная как в Сбере */
   variant?: "gradient" | "minimal";
@@ -38,6 +42,7 @@ export function AccountCard({
   account,
   nextPaymentDate,
   annualInterestRate,
+  savingsInterestRate,
   onClick,
   variant = "gradient",
 }: AccountCardProps) {
@@ -49,6 +54,8 @@ export function AccountCard({
   const showExtraPaymentInfo =
     (account.account_type === "CREDIT" || account.account_type === "DEBIT") &&
     (Boolean(nextPaymentDate) || typeof annualInterestRate === "number");
+  const showSavingsRate =
+    account.account_type === "SAVINGS" && typeof savingsInterestRate === "number";
 
   const copyAccountId = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -113,7 +120,12 @@ export function AccountCard({
               )}
               {showExtraPaymentInfo && typeof annualInterestRate === "number" && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
+                  {formatLoanInterestRateText(annualInterestRate)}
+                </p>
+              )}
+              {showSavingsRate && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {formatSavingsInterestRateText(savingsInterestRate)}
                 </p>
               )}
             </div>
@@ -202,7 +214,12 @@ export function AccountCard({
           )}
           {showExtraPaymentInfo && typeof annualInterestRate === "number" && (
             <p className="text-white/80 text-xs mt-1">
-              Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
+              {formatLoanInterestRateText(annualInterestRate)}
+            </p>
+          )}
+          {showSavingsRate && (
+            <p className="text-white/80 text-xs mt-1">
+              {formatSavingsInterestRateText(savingsInterestRate)}
             </p>
           )}
         </div>

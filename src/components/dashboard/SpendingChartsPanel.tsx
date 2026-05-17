@@ -56,7 +56,7 @@ export function SpendingChartsPanel({
 
       <div>
         <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-          Расходы по дням (последние 7 календарных дней)
+          Операции по дням (последние 7 календарных дней)
         </p>
         <div className="grid grid-cols-7 gap-1.5 h-32">
           {dayBars.map((d) => (
@@ -89,7 +89,7 @@ export function SpendingChartsPanel({
               <div
                 className="relative h-44 w-44 rounded-full"
                 style={{ background: pieBg }}
-                aria-label="Круговая диаграмма трат по категориям"
+                aria-label="Круговая диаграмма операций по категориям"
               >
                 <div className="absolute inset-7 rounded-full bg-white dark:bg-slate-900" />
                 <div className="absolute inset-0 flex items-center justify-center text-center">
@@ -121,7 +121,7 @@ export function SpendingChartsPanel({
           </div>
         ) : (
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Нет расходов за выбранные 7 дней.
+            Нет операций за выбранные 7 дней.
           </p>
         )}
       </div>

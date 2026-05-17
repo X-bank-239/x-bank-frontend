@@ -111,6 +111,50 @@ export function getLoanStatusLabel(status: LoanStatus): string {
   }
 }
 
+/** Годовая ставка из API (доля, напр. 0.12 → 12%). */
+export function formatAnnualInterestRate(rate: number): string {
+  return `${Math.round(rate * 10000) / 100}%`;
+}
+
+/** GET /loans/rate и annualInterestRate: доля (0.12) или проценты (12). */
+export function normalizeLoanAnnualInterestRate(rate: number): number {
+  if (!Number.isFinite(rate)) return rate;
+  return rate > 1 ? rate / 100 : rate;
+}
+
+/** Подпись ставки по кредиту для UI. */
+export function formatLoanInterestRateText(
+  rate: number,
+  options?: { annualSuffix?: boolean }
+): string {
+  const pct = formatAnnualInterestRate(normalizeLoanAnnualInterestRate(rate));
+  return options?.annualSuffix === false
+    ? `Ставка по кредиту: ${pct}`
+    : `Ставка по кредиту: ${pct} годовых`;
+}
+
+/** Подпись ставки по вкладу для UI (interestRate — проценты). */
+export function formatSavingsInterestRateText(ratePercent: number): string {
+  return `Ставка по вкладу: ${ratePercent}% годовых`;
+}
+
+export const SAVINGS_INTEREST_VARIANTS = [
+  { allowWithdrawal: true, allowTopUp: true },
+  { allowWithdrawal: true, allowTopUp: false },
+  { allowWithdrawal: false, allowTopUp: true },
+  { allowWithdrawal: false, allowTopUp: false },
+] as const;
+
+export function getSavingsInterestVariantLabel(
+  allowWithdrawal: boolean,
+  allowTopUp: boolean
+): string {
+  if (allowWithdrawal && allowTopUp) return "Снятие и пополнение";
+  if (allowWithdrawal && !allowTopUp) return "Только снятие";
+  if (!allowWithdrawal && allowTopUp) return "Только пополнение";
+  return "Без снятия и пополнения";
+}
+
 /** Статус вклада, если API отдаёт enum латиницей */
 export function getSavingsStatusLabel(status: string): string {
   const map: Record<string, string> = {
