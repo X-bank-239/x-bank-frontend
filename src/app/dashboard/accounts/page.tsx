@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { accountsApi, loansApi, savingsApi } from "@/lib/api";
+import { accountsApi, loansApi } from "@/lib/api";
 import { AccountCard, AccountQuickActionsModal } from "@/components/dashboard";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
-import type { Currency, AccountType, LoanResponse, BankAccountResponse, SavingsAccount } from "@/types";
+import type { Currency, AccountType, LoanResponse, BankAccountResponse } from "@/types";
 import { getCurrencyName, getAccountTypeName } from "@/lib/utils";
 
 const currencies: Currency[] = ["RUB", "USD", "EUR", "CNY"];
@@ -24,20 +24,15 @@ export default function AccountsPage() {
     account_type: "DEBIT",
   });
   const [loans, setLoans] = useState<LoanResponse[]>([]);
-  const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
-        const [loanList, savingsList] = await Promise.all([
-          loansApi.list(),
-          savingsApi.getAll().catch(() => [] as SavingsAccount[]),
-        ]);
-        setLoans(loanList);
-        setSavingsAccounts(savingsList);
+        const data = await loansApi.list();
+        setLoans(data);
       } catch {
-        // Не блокируем страницу счетов при недоступности списков.
+        // Не блокируем страницу счетов при недоступности кредитного списка.
       }
     })();
   }, []);
@@ -47,7 +42,6 @@ export default function AccountsPage() {
     for (const loan of loans) {
       if (loan.status !== "ACTIVE") continue;
       map.set(loan.debitAccountId, loan.nextPaymentDate);
-      map.set(loan.serviceAccountId, loan.nextPaymentDate);
     }
     return map;
   }, [loans]);
@@ -57,18 +51,9 @@ export default function AccountsPage() {
     for (const loan of loans) {
       if (loan.status !== "ACTIVE") continue;
       map.set(loan.debitAccountId, loan.annualInterestRate);
-      map.set(loan.serviceAccountId, loan.annualInterestRate);
     }
     return map;
   }, [loans]);
-
-  const savingsRateByAccountId = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const savings of savingsAccounts) {
-      map.set(savings.accountId, savings.interestRate);
-    }
-    return map;
-  }, [savingsAccounts]);
 
   const handleCreateAccount = async () => {
     setIsLoading(true);
@@ -199,7 +184,6 @@ export default function AccountsPage() {
                     account={account}
                     nextPaymentDate={nextPaymentByAccountId.get(account.account_id)}
                     annualInterestRate={annualRateByAccountId.get(account.account_id)}
-                    savingsInterestRate={savingsRateByAccountId.get(account.account_id)}
                     onClick={() => setSelectedAccount(account)}
                   />
               ))}
@@ -264,7 +248,6 @@ export default function AccountsPage() {
               </div>
             </CardContent>
           </Card>
-
         </div>
         <AccountQuickActionsModal
           account={selectedAccount}
@@ -278,11 +261,6 @@ export default function AccountsPage() {
           annualInterestRate={
             selectedAccount
               ? annualRateByAccountId.get(selectedAccount.account_id)
-              : undefined
-          }
-          savingsInterestRate={
-            selectedAccount
-              ? savingsRateByAccountId.get(selectedAccount.account_id)
               : undefined
           }
         />

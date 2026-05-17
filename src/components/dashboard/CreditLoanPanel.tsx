@@ -6,8 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { loansApi } from "@/lib/api";
 import type { LoanResponse } from "@/types";
 import { Button, Card, CardContent } from "@/components/ui";
-import { formatAnnualInterestRate, formatCurrency, getLoanStatusLabel } from "@/lib/utils";
-import { LoanCreateInterestHint } from "./LoanCreateInterestHint";
+import { formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 import { LoanRepaymentForm } from "./LoanRepaymentForm";
 
 function isLoanOverdue(nextPaymentDate: string, status: LoanResponse["status"]): boolean {
@@ -133,7 +132,6 @@ export function CreditLoanPanel() {
                   />
                 </div>
               </div>
-              <LoanCreateInterestHint />
               <Button
                 disabled={
                   busy ||
@@ -149,9 +147,8 @@ export function CreditLoanPanel() {
                       termMonths: Number(termMonths),
                     });
                     setLoan(created);
-                    setMessage(
-                      `Кредит создан. Ставка по кредиту: ${formatAnnualInterestRate(created.annualInterestRate)}. ID кредита: ${created.loanId}`
-                    );
+                    const ratePct = Math.round(created.annualInterestRate * 10000) / 100;
+                    setMessage(`Кредит создан. Ставка: ${ratePct}%. ID кредита: ${created.loanId}`);
                     await refreshUser();
                   })
                 }
@@ -212,8 +209,8 @@ export function CreditLoanPanel() {
                   {formatCurrency(loan.monthlyPayment, loan.currency)}
                 </div>
                 <div>
-                  <span className="text-slate-500 dark:text-slate-400">Ставка по кредиту (год.):</span>{" "}
-                  {formatAnnualInterestRate(loan.annualInterestRate)}
+                  <span className="text-slate-500 dark:text-slate-400">Ставка (год.):</span>{" "}
+                  {Math.round(loan.annualInterestRate * 10000) / 100}%
                 </div>
                 <div>
                   <span className="text-slate-500 dark:text-slate-400">След. платёж:</span>{" "}

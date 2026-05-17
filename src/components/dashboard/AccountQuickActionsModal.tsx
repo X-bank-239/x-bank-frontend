@@ -6,8 +6,6 @@ import type { BankAccountResponse } from "@/types";
 import { Card, CardContent } from "@/components/ui";
 import {
   formatCurrency,
-  formatLoanInterestRateText,
-  formatSavingsInterestRateText,
   getAccountTypeName,
 } from "@/lib/utils";
 import { LoanRepaymentForm } from "./LoanRepaymentForm";
@@ -18,7 +16,6 @@ interface AccountQuickActionsModalProps {
   onClose: () => void;
   nextPaymentDate?: string;
   annualInterestRate?: number;
-  savingsInterestRate?: number;
 }
 
 export function AccountQuickActionsModal({
@@ -27,12 +24,9 @@ export function AccountQuickActionsModal({
   onClose,
   nextPaymentDate,
   annualInterestRate,
-  savingsInterestRate,
 }: AccountQuickActionsModalProps) {
   const hasActiveLoanDetails =
     Boolean(nextPaymentDate) || typeof annualInterestRate === "number";
-  const showSavingsRate =
-    account?.account_type === "SAVINGS" && typeof savingsInterestRate === "number";
 
   useEffect(() => {
     if (!open) return;
@@ -73,12 +67,7 @@ export function AccountQuickActionsModal({
               )}
               {hasActiveLoanDetails && typeof annualInterestRate === "number" && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {formatLoanInterestRateText(annualInterestRate)}
-                </p>
-              )}
-              {showSavingsRate && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {formatSavingsInterestRateText(savingsInterestRate)}
+                  Ставка: {Math.round(annualInterestRate * 10000) / 100}% годовых
                 </p>
               )}
             </div>
@@ -98,13 +87,20 @@ export function AccountQuickActionsModal({
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
               Быстрые действия
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Link
                 href={`/dashboard/transactions?account=${account.account_id}&tab=transfer`}
                 onClick={onClose}
                 className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
               >
                 Перевод
+              </Link>
+              <Link
+                href={`/dashboard/transactions?account=${account.account_id}&tab=deposit`}
+                onClick={onClose}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center"
+              >
+                Пополнить
               </Link>
               <Link
                 href={`/dashboard/transactions?account=${account.account_id}&tab=payment`}

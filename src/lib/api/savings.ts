@@ -10,22 +10,13 @@ import type {
  * Вклады (накопительные счета) — пути как в OpenAPI.
  * create: JSON-тело; prolong/close: поля схемы в query.
  */
-export interface SavingsInterestParams {
-  allowWithdrawal: boolean;
-  allowTopUp: boolean;
-}
-
 export const savingsApi = {
   getAll(): Promise<SavingsAccount[]> {
-    return apiClient.get<SavingsAccount[]>("/savings/list");
+    return apiClient.get<SavingsAccount[]>("/savings");
   },
 
-  getInterest(params: SavingsInterestParams): Promise<number> {
-    const q = new URLSearchParams({
-      allowWithdrawal: String(params.allowWithdrawal),
-      allowTopUp: String(params.allowTopUp),
-    }).toString();
-    return apiClient.get<number>(`/savings/interest?${q}`);
+  getInterest(): Promise<number> {
+    return apiClient.get<number>("/savings/interest");
   },
 
   get(accountId: string): Promise<SavingsAccount> {
