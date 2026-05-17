@@ -9,8 +9,7 @@ import {
 } from "@/lib/loan-repayment";
 import type { LoanResponse } from "@/types";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import { LoanCreateInterestHint } from "@/components/dashboard/LoanCreateInterestHint";
-import { formatAnnualInterestRate, formatCurrency, getLoanStatusLabel } from "@/lib/utils";
+import { formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 import Link from "next/link";
 
 function isLoanOverdue(nextPaymentDate: string, status: LoanResponse["status"]): boolean {
@@ -198,9 +197,8 @@ export default function LoansPage() {
                         setLoan(created);
                         setLoans((prev) => [created, ...prev.filter((l) => l.loanId !== created.loanId)]);
                         setRepayDebitAccountId(created.debitAccountId);
-                        setMessage(
-                          `Кредит создан. Ставка по кредиту: ${formatAnnualInterestRate(created.annualInterestRate)}.`
-                        );
+                        const ratePct = Math.round(created.annualInterestRate * 10000) / 100;
+                        setMessage(`Кредит создан. Ставка: ${ratePct}%.`);
                         await refreshUser();
                       })
                     }
@@ -209,7 +207,6 @@ export default function LoansPage() {
                   </Button>
                 </div>
               </div>
-              <LoanCreateInterestHint />
             </>
           )}
         </CardContent>
@@ -240,8 +237,7 @@ export default function LoansPage() {
                   const overdue = isLoanOverdue(item.nextPaymentDate, item.status);
                   return (
                     <option key={item.loanId} value={item.debitAccountId}>
-                      {item.debitAccountId} · {getLoanStatusLabel(item.status)} · кред.{" "}
-                      {formatAnnualInterestRate(item.annualInterestRate)}
+                      {item.debitAccountId} · {getLoanStatusLabel(item.status)}
                       {overdue ? " · ПРОСРОЧКА" : ""}
                     </option>
                   );
@@ -281,8 +277,7 @@ export default function LoansPage() {
                 <span className="text-xs">{getLoanStatusLabel(selectedLoan.status)}</span>
               </div>
               <div className="mt-1 text-slate-600 dark:text-slate-300">
-                След. платеж: {selectedLoan.nextPaymentDate} · Срок: {selectedLoan.termMonths} мес. ·
-                Ставка по кредиту: {formatAnnualInterestRate(selectedLoan.annualInterestRate)} годовых
+                След. платеж: {selectedLoan.nextPaymentDate} · Срок: {selectedLoan.termMonths} мес.
               </div>
               {isLoanOverdue(selectedLoan.nextPaymentDate, selectedLoan.status) && (
                 <p className="mt-1 text-xs font-medium text-red-700 dark:text-red-400">
@@ -483,8 +478,8 @@ export default function LoansPage() {
                 {formatCurrency(loan.monthlyPayment, loan.currency)}
               </div>
               <div>
-                <span className="text-slate-500 dark:text-slate-400">Ставка по кредиту (год.):</span>{" "}
-                {formatAnnualInterestRate(loan.annualInterestRate)}
+                <span className="text-slate-500 dark:text-slate-400">Ставка (год.):</span>{" "}
+                {Math.round(loan.annualInterestRate * 10000) / 100}%
               </div>
               <div>
                 <span className="text-slate-500 dark:text-slate-400">След. платёж:</span>{" "}
