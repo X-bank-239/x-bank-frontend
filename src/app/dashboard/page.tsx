@@ -5,28 +5,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   AccountCard,
   AccountQuickActionsModal,
-  AllAccountsSpendingSection,
+  AccountsSpendingCharts,
 } from "@/components/dashboard";
 import { Card, CardContent, Button } from "@/components/ui";
 import Link from "next/link";
-import { loansApi } from "@/lib/api";
-import type { BankAccountResponse, LoanResponse } from "@/types";
-import { formatCurrency, getLoanStatusLabel } from "@/lib/utils";
+import { loansApi, savingsApi } from "@/lib/api";
+import type { BankAccountResponse, LoanResponse, SavingsAccount } from "@/types";
+import { formatAnnualInterestRate, formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
   const [loans, setLoans] = useState<LoanResponse[]>([]);
+  const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
 
   const [loansExpanded, setLoansExpanded] = useState(false);
 
   useEffect(() => {
     void (async () => {
       try {
-        const data = await loansApi.list();
-        setLoans(data);
+        const [loanList, savingsList] = await Promise.all([
+          loansApi.list(),
+          savingsApi.getAll().catch(() => [] as SavingsAccount[]),
+        ]);
+        setLoans(loanList);
+        setSavingsAccounts(savingsList);
       } catch {
-        // Не блокируем дашборд при недоступности кредитного списка.
+        // Не блокируем дашборд при недоступности списков.
       }
     })();
   }, []);
@@ -36,9 +41,28 @@ export default function DashboardPage() {
     for (const loan of loans) {
       if (loan.status !== "ACTIVE") continue;
       map.set(loan.debitAccountId, loan.nextPaymentDate);
+      map.set(loan.serviceAccountId, loan.nextPaymentDate);
     }
     return map;
   }, [loans]);
+
+  const annualRateByAccountId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const loan of loans) {
+      if (loan.status !== "ACTIVE") continue;
+      map.set(loan.debitAccountId, loan.annualInterestRate);
+      map.set(loan.serviceAccountId, loan.annualInterestRate);
+    }
+    return map;
+  }, [loans]);
+
+  const savingsRateByAccountId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const savings of savingsAccounts) {
+      map.set(savings.accountId, savings.interestRate);
+    }
+    return map;
+  }, [savingsAccounts]);
 
   const loansToShow = loans.length > 5 && !loansExpanded ? loans.slice(0, 5) : loans;
 
@@ -149,6 +173,8 @@ export default function DashboardPage() {
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           {getLoanStatusLabel(loan.status)}
+                          {" "}
+                          · Ставка по кредиту: {formatAnnualInterestRate(loan.annualInterestRate)} годовых
                           {loan.status === "ACTIVE" && loan.nextPaymentDate ? (
                             <>
                               {" "}
@@ -181,7 +207,11 @@ export default function DashboardPage() {
           </Card>
         </section>
 
-        <AllAccountsSpendingSection />
+        <AccountsSpendingCharts
+          variant="dashboard"
+          mode="summary"
+          emptyMessage="Нет операций за период по всем счетам."
+        />
 
         {/* Мои счета / Вклады и счета — как в Сбере */}
         <section>
@@ -205,6 +235,8 @@ export default function DashboardPage() {
                     account={account}
                     variant="minimal"
                     nextPaymentDate={nextPaymentByAccountId.get(account.account_id)}
+                    annualInterestRate={annualRateByAccountId.get(account.account_id)}
+                    savingsInterestRate={savingsRateByAccountId.get(account.account_id)}
                     onClick={() => setSelectedAccount(account)}
                   />
                 ))}
@@ -252,6 +284,16 @@ export default function DashboardPage() {
         nextPaymentDate={
           selectedAccount
             ? nextPaymentByAccountId.get(selectedAccount.account_id)
+            : undefined
+        }
+        annualInterestRate={
+          selectedAccount
+            ? annualRateByAccountId.get(selectedAccount.account_id)
+            : undefined
+        }
+        savingsInterestRate={
+          selectedAccount
+            ? savingsRateByAccountId.get(selectedAccount.account_id)
             : undefined
         }
       />
