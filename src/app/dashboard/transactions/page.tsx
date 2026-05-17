@@ -311,6 +311,7 @@ export default function TransactionsPage() {
         <>
           {/* History Tab */}
           {activeTab === "history" && (
+            <>
             <Card>
               <CardHeader>
                 <CardTitle>История операций</CardTitle>
@@ -495,6 +496,7 @@ export default function TransactionsPage() {
                 )}
               </CardContent>
             </Card>
+            </>
           )}
 
           {/* Transfer Tab */}
