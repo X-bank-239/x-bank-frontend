@@ -75,6 +75,20 @@ export function formatShortDate(dateString: string): string {
   }).format(date);
 }
 
+/** Подпись дня на столбчатой диаграмме (без времени). */
+export function formatChartDayLabel(dateKey: string): string {
+  const parts = dateKey.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+    return dateKey;
+  }
+  const [year, month, day] = parts;
+  const date = new Date(year, month - 1, day);
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
 /**
  * Get gradient/color for account card based on currency (банковская палитра)
  */

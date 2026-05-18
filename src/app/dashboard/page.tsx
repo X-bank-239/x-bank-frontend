@@ -6,20 +6,31 @@ import {
   AccountCard,
   AccountQuickActionsModal,
   AccountsSpendingCharts,
+  CurrencyRatesCard,
+  OpenAccountDialog,
 } from "@/components/dashboard";
 import { Card, CardContent, Button } from "@/components/ui";
 import Link from "next/link";
 import { loansApi, savingsApi } from "@/lib/api";
 import type { BankAccountResponse, LoanResponse, SavingsAccount } from "@/types";
+import {
+  fetchActiveLoansFullDebtByCurrency,
+  fetchLoansFullDebtByLoanId,
+} from "@/lib/loan-debt";
 import { formatAnnualInterestRate, formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccountResponse | null>(null);
   const [loans, setLoans] = useState<LoanResponse[]>([]);
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
 
   const [loansExpanded, setLoansExpanded] = useState(false);
+  const [totalDebtByCurrency, setTotalDebtByCurrency] = useState<
+    Map<LoanResponse["currency"], number>
+  >(new Map());
+  const [fullDebtByLoanId, setFullDebtByLoanId] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +46,22 @@ export default function DashboardPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [byCurrency, byLoanId] = await Promise.all([
+        fetchActiveLoansFullDebtByCurrency(loans),
+        fetchLoansFullDebtByLoanId(loans),
+      ]);
+      if (cancelled) return;
+      setTotalDebtByCurrency(byCurrency);
+      setFullDebtByLoanId(byLoanId);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loans]);
 
   const nextPaymentByAccountId = useMemo(() => {
     const map = new Map<string, string>();
@@ -91,9 +118,9 @@ export default function DashboardPage() {
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
             Быстрые действия
           </p>
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <Link
-                href="/dashboard/transactions"
+                href="/dashboard/transactions?tab=transfer"
                 className="flex flex-col items-center gap-2 rounded-xl bg-white dark:bg-slate-900 p-4 sm:p-5 border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
@@ -103,19 +130,6 @@ export default function DashboardPage() {
               </div>
               <span className="text-center text-sm font-medium text-slate-800 dark:text-slate-100">
               Перевод
-            </span>
-            </Link>
-            <Link
-                href="/dashboard/transactions"
-                className="flex flex-col items-center gap-2 rounded-xl bg-white dark:bg-slate-900 p-4 sm:p-5 border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
-                <svg className="h-6 w-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </div>
-              <span className="text-center text-sm font-medium text-slate-800 dark:text-slate-100">
-              Пополнить
             </span>
             </Link>
             <Link
@@ -133,6 +147,8 @@ export default function DashboardPage() {
             </Link>
           </div>
         </section>
+
+        <CurrencyRatesCard />
 
         <section>
           <div className="flex items-center justify-between mb-4">
@@ -160,6 +176,19 @@ export default function DashboardPage() {
                   .
                 </p>
               ) : (
+                <>
+                  {totalDebtByCurrency.size > 0 && (
+                    <div className="mb-4 flex flex-wrap gap-3">
+                      {Array.from(totalDebtByCurrency.entries()).map(([currency, total]) => (
+                        <p
+                          key={currency}
+                          className="text-base font-semibold text-slate-800 dark:text-slate-100"
+                        >
+                          Общий долг: {formatCurrency(total, currency)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 <ul className="space-y-3">
                   {loansToShow.map((loan) => (
                     <li
@@ -168,9 +197,29 @@ export default function DashboardPage() {
                     >
                       <div className="min-w-0 space-y-1">
                         <p className="font-medium text-slate-800 dark:text-slate-100">
-                          Остаток: {formatCurrency(loan.outstandingPrincipal, loan.currency)} ·{" "}
-                          {loan.currency}
+                          {loan.status === "ACTIVE" ? (
+                            fullDebtByLoanId.has(loan.loanId) ? (
+                              <>
+                                Общий долг:{" "}
+                                {formatCurrency(
+                                  fullDebtByLoanId.get(loan.loanId)!,
+                                  loan.currency
+                                )}
+                              </>
+                            ) : (
+                              <>Общий долг: …</>
+                            )
+                          ) : (
+                            formatCurrency(loan.outstandingPrincipal, loan.currency)
+                          )}{" "}
+                          · {loan.currency}
                         </p>
+                        {loan.status === "ACTIVE" && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Тело кредита:{" "}
+                            {formatCurrency(loan.outstandingPrincipal, loan.currency)}
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           {getLoanStatusLabel(loan.status)}
                           {" "}
@@ -190,6 +239,7 @@ export default function DashboardPage() {
                     </li>
                   ))}
                 </ul>
+                </>
               )}
               {loans.length > 5 ? (
                 <div className="mt-4 flex justify-center">
@@ -215,16 +265,21 @@ export default function DashboardPage() {
 
         {/* Мои счета / Вклады и счета — как в Сбере */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
               Мои счета
             </h2>
-            <Link
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" size="sm" onClick={() => setIsCreatingAccount(true)}>
+                Открыть счёт
+              </Button>
+              <Link
                 href="/dashboard/accounts"
                 className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700"
-            >
-              Все счета
-            </Link>
+              >
+                Все счета
+              </Link>
+            </div>
           </div>
 
           {user?.accounts && user.accounts.length > 0 ? (
@@ -263,20 +318,20 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 mb-4">У вас пока нет счетов</p>
-                  <Link
-                      href="/dashboard/accounts"
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
+                  <Button type="button" onClick={() => setIsCreatingAccount(true)}>
                     Открыть счёт
-                  </Link>
+                  </Button>
                 </CardContent>
               </Card>
           )}
         </section>
       </div>
+      <OpenAccountDialog
+        open={isCreatingAccount}
+        onClose={() => setIsCreatingAccount(false)}
+        onCreated={refreshUser}
+      />
+
       <AccountQuickActionsModal
         account={selectedAccount}
         open={Boolean(selectedAccount)}

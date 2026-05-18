@@ -10,6 +10,7 @@ import {
 import type { LoanResponse } from "@/types";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { LoanCreateInterestHint } from "@/components/dashboard/LoanCreateInterestHint";
+import { useLoanFullDebt } from "@/hooks/useLoanFullDebt";
 import { formatAnnualInterestRate, formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 import Link from "next/link";
 
@@ -92,6 +93,9 @@ export default function LoansPage() {
 
   const canRepay =
     Boolean(repayDebitAccountId) && selectedLoan?.status === "ACTIVE";
+
+  const loanForDetails = loan ?? selectedLoan;
+  const loanFullDebt = useLoanFullDebt(loanForDetails);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -475,9 +479,17 @@ export default function LoansPage() {
                 <span className="font-mono text-xs break-all">{loan.debitAccountId}</span>
               </div>
               <div>
-                <span className="text-slate-500 dark:text-slate-400">Остаток:</span>{" "}
+                <span className="text-slate-500 dark:text-slate-400">Тело кредита:</span>{" "}
                 {formatCurrency(loan.outstandingPrincipal, loan.currency)}
               </div>
+              {loan.status === "ACTIVE" && (
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400">Общий долг:</span>{" "}
+                  {loanFullDebt != null
+                    ? formatCurrency(loanFullDebt, loan.currency)
+                    : "…"}
+                </div>
+              )}
               <div>
                 <span className="text-slate-500 dark:text-slate-400">Платёж в месяц:</span>{" "}
                 {formatCurrency(loan.monthlyPayment, loan.currency)}

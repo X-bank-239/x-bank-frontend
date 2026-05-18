@@ -155,8 +155,12 @@ class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: "DELETE" });
+  /** DELETE; при `data` отправляется JSON-тело (некоторые эндпоинты Spring требуют @RequestBody). */
+  async delete<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "DELETE",
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+    });
   }
 
   async patch<T>(endpoint: string, data?: unknown): Promise<T> {

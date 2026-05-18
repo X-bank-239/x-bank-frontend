@@ -6,3 +6,6 @@ export { LoanRepaymentForm } from "./LoanRepaymentForm";
 export { AccountQuickActionsModal } from "./AccountQuickActionsModal";
 export { SpendingChartsPanel } from "./SpendingChartsPanel";
 export { AccountsSpendingCharts, AllAccountsSpendingSection } from "./AccountsSpendingCharts";
+export { CurrencyRatesCard } from "./CurrencyRatesCard";
+export { OpenAccountDialog } from "./OpenAccountDialog";
+export { OpenSavingsDepositDialog } from "./OpenSavingsDepositDialog";

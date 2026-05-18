@@ -10,9 +10,9 @@ import { useMemo, useState } from "react";
 
 const baseNavItems = [
   { href: "/dashboard", label: "Главная" },
-  { href: "/dashboard/accounts", label: "Вклады и счета" },
+  { href: "/dashboard/accounts", label: "Счета и вклады" },
   { href: "/dashboard/transactions", label: "Платежи и переводы" },
-  { href: "/dashboard/savings", label: "Вклады" },
+  { href: "/dashboard/savings", label: "Накопительные" },
   { href: "/dashboard/loans", label: "Кредит" },
 ];
 

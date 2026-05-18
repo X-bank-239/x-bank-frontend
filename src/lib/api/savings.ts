@@ -8,7 +8,7 @@ import type {
 
 /**
  * Вклады (накопительные счета) — пути как в OpenAPI.
- * create: JSON-тело; prolong/close: поля схемы в query.
+ * create: JSON-тело; prolong: query; close: JSON-тело (как на бэкенде).
  */
 export interface SavingsInterestParams {
   allowWithdrawal: boolean;
@@ -43,7 +43,6 @@ export const savingsApi = {
   },
 
   close(accountId: string, data: CloseSavingsRequest): Promise<void> {
-    const q = new URLSearchParams({ target_account_id: data.target_account_id }).toString();
-    return apiClient.delete<void>(`/savings/close/${accountId}?${q}`);
+    return apiClient.delete<void>(`/savings/close/${accountId}`, data);
   },
 };
