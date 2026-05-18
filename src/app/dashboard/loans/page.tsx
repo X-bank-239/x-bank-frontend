@@ -244,7 +244,7 @@ export default function LoansPage() {
                   const overdue = isLoanOverdue(item.nextPaymentDate, item.status);
                   return (
                     <option key={item.loanId} value={item.debitAccountId}>
-                      {item.debitAccountId} · {getLoanStatusLabel(item.status)} · кред.{" "}
+                      ID займа {item.loanId} · {getLoanStatusLabel(item.status)} · кред.{" "}
                       {formatAnnualInterestRate(item.annualInterestRate)}
                       {overdue ? " · ПРОСРОЧКА" : ""}
                     </option>

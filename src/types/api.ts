@@ -207,7 +207,7 @@ export interface TransactionKeyword {
   createdAt?: string;
 }
 
-/** POST /savings/prolong/{accountId} (query). */
+/** POST /savings/prolong/{accountId} — JSON-тело. */
 export interface ProlongSavingsRequest {
   new_maturity_date: string;
 }

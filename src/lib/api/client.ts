@@ -47,6 +47,7 @@ class ApiClient {
       response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
+        body: options.body,
       });
     } catch (e) {
       console.error("Сетевая ошибка:", { endpoint, method, error: e });
@@ -141,26 +142,39 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: unknown, options: RequestInit = {}): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: "POST",
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    const headers = new Headers(options.headers as HeadersInit | undefined);
+    const init: RequestInit = { ...options, method: "POST" };
+
+    if (data !== undefined && data !== null) {
+      init.body = JSON.stringify(data);
+      headers.set("Content-Type", "application/json");
+    }
+
+    init.headers = headers;
+    return this.request<T>(endpoint, init);
   }
 
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    const headers = new Headers();
+    const init: RequestInit = { method: "PUT" };
+    if (data !== undefined && data !== null) {
+      init.body = JSON.stringify(data);
+      headers.set("Content-Type", "application/json");
+    }
+    init.headers = headers;
+    return this.request<T>(endpoint, init);
   }
 
   /** DELETE; при `data` отправляется JSON-тело (некоторые эндпоинты Spring требуют @RequestBody). */
   async delete<T>(endpoint: string, data?: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "DELETE",
-      body: data !== undefined ? JSON.stringify(data) : undefined,
-    });
+    const headers = new Headers();
+    const init: RequestInit = { method: "DELETE" };
+    if (data !== undefined && data !== null) {
+      init.body = JSON.stringify(data);
+      headers.set("Content-Type", "application/json");
+    }
+    init.headers = headers;
+    return this.request<T>(endpoint, init);
   }
 
   async patch<T>(endpoint: string, data?: unknown): Promise<T> {
