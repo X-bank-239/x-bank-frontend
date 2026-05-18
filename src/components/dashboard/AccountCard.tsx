@@ -10,6 +10,7 @@ import {
   getAccountCardGradient,
   getAccountCardAccent,
 } from "@/lib/utils";
+import { notifyCopied } from "@/components/ui/CopyToast";
 import { cn } from "@/lib/utils";
 
 interface AccountCardProps {
@@ -63,6 +64,7 @@ export function AccountCard({
     try {
       if (canCopy && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(account.account_id);
+        notifyCopied();
       } else {
         window.prompt("Скопируйте ID счёта:", account.account_id);
       }
