@@ -291,7 +291,11 @@ function SavingsAccountPanel({
 
           {savings ? (
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-              <span>{formatSavingsInterestRateText(savings.interestRate)}</span>
+              {Number.isFinite(savings.interestRate) && savings.interestRate > 0 ? (
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {formatSavingsInterestRateText(savings.interestRate)}
+                </span>
+              ) : null}
               <span>До {savings.maturityDate}</span>
               <span>
                 Начислено: {formatCurrency(savings.accruedInterest, currency)}

@@ -147,9 +147,17 @@ export function formatLoanInterestRateText(
     : `Ставка по кредиту: ${pct} годовых`;
 }
 
-/** Подпись ставки по вкладу для UI (interestRate — проценты). */
-export function formatSavingsInterestRateText(ratePercent: number): string {
-  return `Ставка по вкладу: ${ratePercent}% годовых`;
+/** Ставка вклада: API может отдавать долю (0.12) или проценты (12). */
+export function normalizeSavingsInterestRatePercent(rate: number): number {
+  if (!Number.isFinite(rate)) return rate;
+  return rate > 0 && rate <= 1 ? rate * 100 : rate;
+}
+
+/** Подпись ставки по вкладу для UI. */
+export function formatSavingsInterestRateText(rate: number): string {
+  const pct = normalizeSavingsInterestRatePercent(rate);
+  const display = Math.round(pct * 100) / 100;
+  return `Ставка по вкладу: ${display}% годовых`;
 }
 
 export const SAVINGS_INTEREST_VARIANTS = [

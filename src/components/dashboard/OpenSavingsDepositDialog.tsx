@@ -6,6 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/u
 import type { Currency } from "@/types";
 import {
   formatCurrency,
+  formatSavingsInterestRateText,
   getSavingsInterestVariantLabel,
   SAVINGS_INTEREST_VARIANTS,
 } from "@/lib/utils";
@@ -150,11 +151,10 @@ export function OpenSavingsDepositDialog({
                 />
                 Разрешить пополнение
               </label>
-              {typeof selectedRate === "number" && (
+              {typeof selectedRate === "number" && selectedRate > 0 && (
                 <p className="text-sm text-slate-600 dark:text-slate-300 pt-1">
-                  Ставка:{" "}
                   <span className="font-semibold text-slate-800 dark:text-slate-100">
-                    {selectedRate}% годовых
+                    {formatSavingsInterestRateText(selectedRate)}
                   </span>{" "}
                   ({getSavingsInterestVariantLabel(allowWithdrawal, allowTopUp)})
                 </p>

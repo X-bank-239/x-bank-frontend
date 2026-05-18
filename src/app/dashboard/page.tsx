@@ -221,6 +221,9 @@ export default function DashboardPage() {
                           </p>
                         )}
                         <p className="text-xs text-slate-500 dark:text-slate-400">
+                          <span className="font-mono break-all">ID займа: {loan.loanId}</span>
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {getLoanStatusLabel(loan.status)}
                           {" "}
                           · Ставка по кредиту: {formatAnnualInterestRate(loan.annualInterestRate)} годовых
@@ -233,9 +236,6 @@ export default function DashboardPage() {
                           ) : null}
                         </p>
                       </div>
-                      <span className="font-mono text-[11px] text-slate-400 shrink-0">
-                        {loan.loanId.slice(0, 8)}…
-                      </span>
                     </li>
                   ))}
                 </ul>
