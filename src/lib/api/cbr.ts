@@ -6,15 +6,28 @@ import type {
   UpdateCurrencyRateRequest,
 } from "@/types";
 
+/** Бэкенд может вернуть null для валют без курса (например RUB в /latest). */
+function normalizeCurrencyRates(data: unknown): CurrencyRate[] {
+  if (!Array.isArray(data)) return [];
+  return data.filter(
+    (item): item is CurrencyRate =>
+      item != null &&
+      typeof item === "object" &&
+      typeof (item as CurrencyRate).currency === "string" &&
+      typeof (item as CurrencyRate).rate === "number"
+  );
+}
+
 export const cbrApi = {
   getSupportedCurrencies(): Promise<Currency[]> {
     // OpenAPI: GET /currency-rates/supported
     return apiClient.get<Currency[]>("/currency-rates/supported");
   },
 
-  getLatestRates(): Promise<CurrencyRate[]> {
+  async getLatestRates(): Promise<CurrencyRate[]> {
     // OpenAPI: GET /currency-rates/latest
-    return apiClient.get<CurrencyRate[]>("/currency-rates/latest");
+    const data = await apiClient.get<unknown>("/currency-rates/latest");
+    return normalizeCurrencyRates(data);
   },
 
   getLatestRateForCurrency(currency: string): Promise<CurrencyRate> {
@@ -23,10 +36,11 @@ export const cbrApi = {
     return apiClient.get<CurrencyRate>(`/currency-rates/latest/${enc}`);
   },
 
-  getRatesByDate(date: string): Promise<CurrencyRate[]> {
+  async getRatesByDate(date: string): Promise<CurrencyRate[]> {
     // OpenAPI: GET /currency-rates/date/{date}
     const enc = encodeURIComponent(date);
-    return apiClient.get<CurrencyRate[]>(`/currency-rates/date/${enc}`);
+    const data = await apiClient.get<unknown>(`/currency-rates/date/${enc}`);
+    return normalizeCurrencyRates(data);
   },
 
   syncFromCbr(date: string): Promise<void> {

@@ -20,7 +20,7 @@ import {
   cn,
 } from "@/lib/utils";
 
-type TabType = "history" | "transfer" | "deposit" | "payment";
+type TabType = "history" | "transfer" | "payment";
 
 function getOptionalNumber(
   tx: TransactionResponse,
@@ -91,7 +91,7 @@ export default function TransactionsPage() {
       }
     }
 
-    if (tab && ["history", "transfer", "deposit", "payment"].includes(tab)) {
+    if (tab && ["history", "transfer", "payment"].includes(tab)) {
       setActiveTab(tab as TabType);
     }
 
@@ -135,14 +135,10 @@ export default function TransactionsPage() {
         transaction_type: type,
         amount: parseFloat(amount),
         currency: selectedAccount.currency,
-        sender_id: type === "DEPOSIT" ? undefined : selectedAccount.account_id,
-        receiver_id: type === "DEPOSIT" ? selectedAccount.account_id : undefined,
+        sender_id: selectedAccount.account_id,
+        receiver_id: type === "TRANSFER" ? receiverEmail.trim() : undefined,
         comment: comment || undefined,
       };
-
-      if (type === "TRANSFER") {
-        transactionData.receiver_id = receiverEmail.trim();
-      }
 
       switch (type) {
         case "TRANSFER":
@@ -150,9 +146,6 @@ export default function TransactionsPage() {
           break;
         case "PAYMENT":
           await transactionsApi.payment(transactionData);
-          break;
-        case "DEPOSIT":
-          await transactionsApi.deposit(transactionData);
           break;
       }
 
@@ -192,15 +185,6 @@ export default function TransactionsPage() {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
-      ),
-    },
-    {
-      id: "deposit",
-      label: "Пополнить",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
       ),
     },
@@ -571,71 +555,6 @@ export default function TransactionsPage() {
             </Card>
           )}
 
-          {/* Deposit Tab */}
-          {activeTab === "deposit" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Пополнение счёта</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {error && (
-                  <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
-                    {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="mb-4 p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg text-teal-700 dark:text-teal-400 text-sm">
-                    {success}
-                  </div>
-                )}
-
-                <div className="space-y-4 max-w-md">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Текущий баланс</p>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(selectedAccount.balance, selectedAccount.currency)}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                      Сумма пополнения ({selectedAccount.currency})
-                    </label>
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                      Комментарий (необязательно)
-                    </label>
-                    <input
-                      type="text"
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                      placeholder="Источник средств"
-                    />
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={() => handleTransaction("DEPOSIT")}
-                    disabled={isSubmitting || !amount}
-                  >
-                    {isSubmitting ? "Пополнение..." : "Пополнить"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Payment Tab */}
           {activeTab === "payment" && (

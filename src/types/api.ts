@@ -212,7 +212,7 @@ export interface ProlongSavingsRequest {
   new_maturity_date: string;
 }
 
-/** DELETE /savings/close/{accountId} (query). */
+/** DELETE /savings/close/{accountId} — JSON-тело. */
 export interface CloseSavingsRequest {
   target_account_id: string;
 }

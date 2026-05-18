@@ -257,6 +257,15 @@ export default function AdminPage() {
     return map;
   }, [categories]);
 
+  const displayedCurrencyRates = useMemo(() => {
+    const raw = ratesByDate ?? latestRates;
+    if (!raw) return [];
+    return raw.filter(
+      (r): r is CurrencyRate =>
+        r != null && typeof r.currency === "string" && typeof r.rate === "number"
+    );
+  }, [ratesByDate, latestRates]);
+
   return (
     <AdminRoute>
       <div className="max-w-5xl mx-auto space-y-8">
@@ -515,9 +524,9 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Тот же контракт, что в кабинете клиента: <span className="font-mono">POST /transactions/deposit</span> с{" "}
+                <span className="font-mono">POST /transactions/deposit</span> с{" "}
                 <span className="font-mono">transaction_type: DEPOSIT</span> и <span className="font-mono">receiver_id</span> — UUID
-                счёта. Валюта подставляется с бэка по счёту.
+                счёта. Валюта подставляется с бэка по счёту. Доступно только администраторам.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
@@ -1003,7 +1012,7 @@ export default function AdminPage() {
                 </Button>
               </div>
 
-              {(latestRates && latestRates.length > 0) || (ratesByDate && ratesByDate.length > 0) ? (
+              {displayedCurrencyRates.length > 0 ? (
                 <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                   <div className="grid grid-cols-4 bg-slate-50 dark:bg-slate-900/60 text-xs font-medium text-slate-600 dark:text-slate-300">
                     <div className="px-3 py-2">Валюта</div>
@@ -1011,7 +1020,7 @@ export default function AdminPage() {
                     <div className="px-3 py-2">Дата</div>
                     <div className="px-3 py-2">Создано</div>
                   </div>
-                  {(ratesByDate ?? latestRates ?? []).map((r) => (
+                  {displayedCurrencyRates.map((r) => (
                     <div
                       key={`${r.currency}-${r.date}-${r.createdAt}`}
                       className="grid grid-cols-4 border-t border-slate-200 dark:border-slate-700 text-sm"

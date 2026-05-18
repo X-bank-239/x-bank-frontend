@@ -1,5 +1,5 @@
 import type { Currency, TransactionCategory, TransactionResponse } from "@/types";
-import { formatShortDate, getTransactionTypeName } from "@/lib/utils";
+import { formatChartDayLabel, getTransactionTypeName } from "@/lib/utils";
 
 export const CHART_FETCH_PAGE_SIZE = 500;
 
@@ -89,7 +89,7 @@ export function aggregateSpendingByDay(dayKeys: string[], txs: TransactionRespon
     const amount = byDay[dateKey] ?? 0;
     return {
       dateKey,
-      label: formatShortDate(dateKey),
+      label: formatChartDayLabel(dateKey),
       amount,
       barPercent: max > 0 ? (amount / max) * 100 : 0,
     };

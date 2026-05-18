@@ -1,34 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { accountsApi, savingsApi } from "@/lib/api";
-import type { CreateSavingsAccountRequest, Currency, SavingsAccount } from "@/types";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { OpenSavingsDepositDialog } from "@/components/dashboard";
+import { savingsApi } from "@/lib/api";
+import type { Currency, SavingsAccount } from "@/types";
+import { Button, Card, CardContent } from "@/components/ui";
 import {
   formatCurrency,
-  getCurrencyName,
-  getSavingsInterestVariantLabel,
+  formatSavingsInterestRateText,
+  getAccountCardAccent,
+  getAccountTypeName,
   getSavingsStatusLabel,
-  SAVINGS_INTEREST_VARIANTS,
 } from "@/lib/utils";
-
-const currencies: Currency[] = ["RUB", "USD", "EUR", "CNY"];
-
-function defaultMaturityDate(): string {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
-type InterestRatesMap = Record<string, number>;
-
-function interestKey(allowWithdrawal: boolean, allowTopUp: boolean): string {
-  return `${allowWithdrawal}:${allowTopUp}`;
-}
+import { cn } from "@/lib/utils";
 
 export default function SavingsPage() {
   const { user, refreshUser } = useAuth();
+
+  const savingsBankAccounts = useMemo(
+    () => (user?.accounts ?? []).filter((a) => a.account_type === "SAVINGS"),
+    [user?.accounts]
+  );
+
   const debitAccounts = useMemo(
     () => (user?.accounts ?? []).filter((a) => a.account_type === "DEBIT"),
     [user]
@@ -38,15 +33,14 @@ export default function SavingsPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [list, setList] = useState<SavingsAccount[]>([]);
-  const [interestRates, setInterestRates] = useState<InterestRatesMap>({});
-
-  const [currency, setCurrency] = useState<Currency>("RUB");
-  const [maturityDate, setMaturityDate] = useState(defaultMaturityDate);
-  const [allowWithdrawal, setAllowWithdrawal] = useState(true);
-  const [allowTopUp, setAllowTopUp] = useState(true);
-
-  const selectedRate = interestRates[interestKey(allowWithdrawal, allowTopUp)];
+  const [savingsByAccountId, setSavingsByAccountId] = useState<Map<string, SavingsAccount>>(
+    () => new Map()
+  );
+  const [depositTarget, setDepositTarget] = useState<{
+    accountId: string;
+    currency: Currency;
+    balance: number;
+  } | null>(null);
 
   const run = useCallback(async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -61,48 +55,92 @@ export default function SavingsPage() {
     }
   }, []);
 
-  const loadInterestRates = useCallback(async () => {
-    const entries = await Promise.all(
-      SAVINGS_INTEREST_VARIANTS.map(async (variant) => {
-        const rate = await savingsApi.getInterest(variant);
-        return [interestKey(variant.allowWithdrawal, variant.allowTopUp), rate] as const;
-      })
-    );
-    setInterestRates(Object.fromEntries(entries));
-  }, []);
-
-  const loadAll = useCallback(async (options?: { notify?: boolean }) => {
+  const loadSavings = useCallback(async (options?: { notify?: boolean }) => {
     setBusy(true);
     setLoading(true);
     setError("");
     setMessage("");
     try {
       const accounts = await savingsApi.getAll();
-      setList(accounts);
-      await loadInterestRates();
-      if (options?.notify) {
-        setMessage("Данные обновлены.");
-      }
+      const map = new Map<string, SavingsAccount>();
+      for (const s of accounts) map.set(s.accountId, s);
+      setSavingsByAccountId(map);
+      if (options?.notify) setMessage("Данные обновлены.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка запроса");
     } finally {
       setBusy(false);
       setLoading(false);
     }
-  }, [loadInterestRates]);
+  }, []);
 
   useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
+    void loadSavings();
+  }, [loadSavings]);
+
+  const items = useMemo(() => {
+    return savingsBankAccounts.map((account) => ({
+      account,
+      savings: savingsByAccountId.get(account.account_id),
+    }));
+  }, [savingsBankAccounts, savingsByAccountId]);
+
+  const pendingDepositCount = useMemo(
+    () => items.filter((i) => !i.savings).length,
+    [items]
+  );
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Вклады</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-          При открытии вклада автоматически создаётся накопительный счёт. Ставки, продление и закрытие.
-        </p>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
+            Накопительные счета
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+            Сначала откройте накопительный счёт на главной или в «Мои счета», затем оформите
+            вклад здесь.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/accounts"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            Создать счёт
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => void loadSavings({ notify: true })}
+          >
+            Обновить
+          </Button>
+        </div>
       </div>
+
+      {depositTarget && (
+        <OpenSavingsDepositDialog
+          open
+          onClose={() => setDepositTarget(null)}
+          onCreated={async () => {
+            await refreshUser();
+            await loadSavings({ notify: true });
+          }}
+          accountId={depositTarget.accountId}
+          currency={depositTarget.currency}
+          balance={depositTarget.balance}
+        />
+      )}
+
+      {pendingDepositCount > 0 && (
+        <p className="text-sm text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
+          {pendingDepositCount === 1
+            ? "Есть счёт без вклада — нажмите «Оформить вклад»."
+            : `Счетов без вклада: ${pendingDepositCount}. Оформите вклад на каждый.`}
+        </p>
+      )}
 
       {(error || message) && (
         <div
@@ -116,165 +154,79 @@ export default function SavingsPage() {
         </div>
       )}
 
-      <Card accent>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle>Ставки по вкладам</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => void loadAll({ notify: true })}
-          >
-            Обновить всё
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">Загрузка…</p>
-          ) : (
-            <ul className="space-y-2">
-              {SAVINGS_INTEREST_VARIANTS.map((variant) => {
-                const key = interestKey(variant.allowWithdrawal, variant.allowTopUp);
-                const rate = interestRates[key];
-                return (
-                  <li
-                    key={key}
-                    className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
-                  >
-                    <span className="text-slate-600 dark:text-slate-300">
-                      {getSavingsInterestVariantLabel(variant.allowWithdrawal, variant.allowTopUp)}
-                    </span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-100">
-                      {typeof rate === "number" ? `${rate}% годовых` : "—"}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
-            Ставка зависит от разрешения снятия и пополнения по вкладу.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Открыть вклад</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Валюта вклада
-              </label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as Currency)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+            Загрузка…
+          </CardContent>
+        </Card>
+      ) : items.length === 0 ? (
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardContent className="text-center py-16">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg
+                className="w-8 h-8 text-slate-400 dark:text-slate-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                {currencies.map((c) => (
-                  <option key={c} value={c}>
-                    {c} — {getCurrencyName(c)}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Будет создан накопительный счёт в выбранной валюте
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Дата окончания вклада
-              </label>
-              <input
-                type="date"
-                value={maturityDate}
-                onChange={(e) => setMaturityDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <input
-                type="checkbox"
-                checked={allowWithdrawal}
-                onChange={(e) => setAllowWithdrawal(e.target.checked)}
-              />
-              Разрешить снятие со вклада
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <input
-                type="checkbox"
-                checked={allowTopUp}
-                onChange={(e) => setAllowTopUp(e.target.checked)}
-              />
-              Разрешить пополнение вклада
-            </label>
-          </div>
-          {typeof selectedRate === "number" && (
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Ставка по вкладу для выбранных условий:{" "}
-              <span className="font-semibold text-slate-800 dark:text-slate-100">
-                {selectedRate}% годовых
-              </span>
-            </p>
-          )}
-          <Button
-            disabled={busy || !maturityDate}
-            onClick={() =>
-              run(async () => {
-                const savingsBankAccount = await accountsApi.create({
-                  currency,
-                  account_type: "SAVINGS",
-                });
-                const body: CreateSavingsAccountRequest = {
-                  account_id: savingsBankAccount.account_id,
-                  maturity_date: maturityDate,
-                  allow_withdrawal: allowWithdrawal,
-                  allow_top_up: allowTopUp,
-                };
-                await savingsApi.create(body);
-                await refreshUser();
-                await loadAll();
-                setMessage("Накопительный счёт и вклад открыты.");
-              })
-            }
-          >
-            Открыть вклад
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Мои вклады</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!loading && !list.length ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">Нет вкладов или список пуст.</p>
-          ) : !loading ? (
-            <ul className="space-y-4">
-              {list.map((s) => (
-                <SavingsRow
-                  key={s.accountId}
-                  savings={s}
-                  debitAccounts={debitAccounts}
-                  busy={busy}
-                  onRun={run}
-                  onReload={loadAll}
-                  onRefreshUser={refreshUser}
-                  onMessage={setMessage}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
                 />
-              ))}
-            </ul>
-          ) : null}
-        </CardContent>
-      </Card>
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
+              Накопительных счетов нет
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto text-sm">
+              Создайте накопительный счёт (тип «Накопительный»), затем вернитесь сюда и
+              оформите вклад.
+            </p>
+            <Link
+              href="/dashboard/accounts"
+              className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700"
+            >
+              Создать накопительный счёт
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <ul className="space-y-4">
+          {items.map(({ account, savings }) => (
+            <SavingsAccountPanel
+              key={account.account_id}
+              accountId={account.account_id}
+              currency={account.currency}
+              balance={account.balance}
+              savings={savings}
+              debitAccounts={debitAccounts}
+              busy={busy}
+              onRun={run}
+              onReload={loadSavings}
+              onRefreshUser={refreshUser}
+              onMessage={setMessage}
+              onOpenDeposit={() =>
+                setDepositTarget({
+                  accountId: account.account_id,
+                  currency: account.currency,
+                  balance: account.balance,
+                })
+              }
+            />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
-function SavingsRow({
+function SavingsAccountPanel({
+  accountId,
+  currency,
+  balance,
   savings,
   debitAccounts,
   busy,
@@ -282,21 +234,27 @@ function SavingsRow({
   onReload,
   onRefreshUser,
   onMessage,
+  onOpenDeposit,
 }: {
-  savings: SavingsAccount;
+  accountId: string;
+  currency: Currency;
+  balance: number;
+  savings?: SavingsAccount;
   debitAccounts: { account_id: string; currency: Currency; balance: number }[];
   busy: boolean;
   onRun: (fn: () => Promise<void>) => Promise<void>;
   onReload: (options?: { notify?: boolean }) => void;
   onRefreshUser: () => Promise<void>;
   onMessage: (s: string) => void;
+  onOpenDeposit: () => void;
 }) {
-  const [prolongDate, setProlongDate] = useState(savings.maturityDate);
+  const [prolongDate, setProlongDate] = useState(savings?.maturityDate ?? "");
   const [closeTargetId, setCloseTargetId] = useState(debitAccounts[0]?.account_id ?? "");
+  const accentBar = getAccountCardAccent(currency);
 
   useEffect(() => {
-    setProlongDate(savings.maturityDate);
-  }, [savings.maturityDate]);
+    if (savings?.maturityDate) setProlongDate(savings.maturityDate);
+  }, [savings?.maturityDate]);
 
   useEffect(() => {
     if (debitAccounts.length && !debitAccounts.some((a) => a.account_id === closeTargetId)) {
@@ -304,78 +262,136 @@ function SavingsRow({
     }
   }, [debitAccounts, closeTargetId]);
 
+  const canManage = Boolean(savings);
+
   return (
-    <li className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3 text-sm">
-      <div className="flex flex-wrap justify-between gap-2">
-        <span className="font-mono text-xs text-slate-500 break-all">{savings.accountId}</span>
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-          {getSavingsStatusLabel(savings.status)}
-        </span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 dark:text-slate-300">
-        <div>Начислено: {savings.accruedInterest}</div>
-        <div>Ставка по вкладу: {savings.interestRate}%</div>
-        <div>Окончание: {savings.maturityDate}</div>
-        <div>Автопролонг: {savings.autoProlong ? "да" : "нет"}</div>
-      </div>
-      <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-        <div className="flex flex-wrap items-end gap-2">
-          <input
-            type="date"
-            value={prolongDate}
-            onChange={(e) => setProlongDate(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy || !prolongDate}
-            onClick={() =>
-              onRun(async () => {
-                await savingsApi.prolong(savings.accountId, { new_maturity_date: prolongDate });
-                onReload();
-                await onRefreshUser();
-                onMessage("Вклад продлён.");
-              })
-            }
-          >
-            Продлить
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          {debitAccounts.length > 0 ? (
-            <select
-              value={closeTargetId}
-              onChange={(e) => setCloseTargetId(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs max-w-full"
-            >
-              {debitAccounts.map((a) => (
-                <option key={a.account_id} value={a.account_id}>
-                  Зачислить на {a.currency} · {formatCurrency(a.balance, a.currency)}
-                </option>
-              ))}
-            </select>
+    <li className="flex rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+      <div className={cn("w-1 shrink-0", accentBar)} />
+      <div className="flex-1 min-w-0">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                {getAccountTypeName("SAVINGS")} · {currency}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono break-all mt-1">
+                {accountId}
+              </p>
+            </div>
+            {savings ? (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                {getSavingsStatusLabel(savings.status)}
+              </span>
+            ) : null}
+          </div>
+
+          <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
+            {formatCurrency(balance, currency)}
+          </p>
+
+          {savings ? (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+              <span>{formatSavingsInterestRateText(savings.interestRate)}</span>
+              <span>До {savings.maturityDate}</span>
+              <span>
+                Начислено: {formatCurrency(savings.accruedInterest, currency)}
+              </span>
+              {savings.autoProlong ? <span>Автопролонг</span> : null}
+            </div>
           ) : (
-            <span className="text-xs text-slate-500">Нет дебетового счёта для зачисления</span>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Вклад не оформлен — только счёт.
+              </p>
+              <Button size="sm" onClick={onOpenDeposit}>
+                Оформить вклад
+              </Button>
+            </div>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-red-200 text-red-800 hover:bg-red-50 dark:border-red-900 dark:text-red-300"
-            disabled={busy || !closeTargetId}
-            onClick={() => {
-              if (!confirm("Закрыть вклад и перевести средства на выбранный счёт?")) return;
-              void onRun(async () => {
-                await savingsApi.close(savings.accountId, { target_account_id: closeTargetId });
-                onReload();
-                await onRefreshUser();
-                onMessage("Вклад закрыт.");
-              });
-            }}
-          >
-            Закрыть
-          </Button>
         </div>
+
+        {canManage && savings ? (
+          <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/30 space-y-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              Управление
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs text-slate-600 dark:text-slate-400">
+                  Продлить до даты
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="date"
+                    value={prolongDate}
+                    onChange={(e) => setProlongDate(e.target.value)}
+                    className="flex-1 min-w-[10rem] px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || !prolongDate}
+                    onClick={() =>
+                      onRun(async () => {
+                        await savingsApi.prolong(savings.accountId, {
+                          new_maturity_date: prolongDate,
+                        });
+                        onReload();
+                        await onRefreshUser();
+                        onMessage("Срок вклада продлён.");
+                      })
+                    }
+                  >
+                    Продлить
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs text-slate-600 dark:text-slate-400">
+                  Закрыть и перевести на счёт
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {debitAccounts.length > 0 ? (
+                    <select
+                      value={closeTargetId}
+                      onChange={(e) => setCloseTargetId(e.target.value)}
+                      className="flex-1 min-w-[10rem] px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                    >
+                      {debitAccounts.map((a) => (
+                        <option key={a.account_id} value={a.account_id}>
+                          {a.currency} · {formatCurrency(a.balance, a.currency)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-slate-500 py-2">
+                      Нужен дебетовый счёт для зачисления
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-800 hover:bg-red-50 dark:border-red-900 dark:text-red-300 shrink-0"
+                    disabled={busy || !closeTargetId}
+                    onClick={() => {
+                      if (!confirm("Закрыть накопительный счёт и перевести средства?")) return;
+                      void onRun(async () => {
+                        await savingsApi.close(savings.accountId, {
+                          target_account_id: closeTargetId,
+                        });
+                        onReload();
+                        await onRefreshUser();
+                        onMessage("Счёт закрыт.");
+                      });
+                    }}
+                  >
+                    Закрыть
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </li>
   );

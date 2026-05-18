@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { loansApi } from "@/lib/api";
 import type { LoanResponse } from "@/types";
 import { Button, Card, CardContent } from "@/components/ui";
+import { useLoanFullDebt } from "@/hooks/useLoanFullDebt";
 import { formatAnnualInterestRate, formatCurrency, getLoanStatusLabel } from "@/lib/utils";
 import { LoanCreateInterestHint } from "./LoanCreateInterestHint";
 import { LoanRepaymentForm } from "./LoanRepaymentForm";
@@ -46,6 +47,8 @@ export function CreditLoanPanel() {
       setCreateCreditAccountId(debitAccounts[0]!.account_id);
     }
   }, [debitAccounts, createCreditAccountId]);
+
+  const loanFullDebt = useLoanFullDebt(loan);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -204,9 +207,17 @@ export function CreditLoanPanel() {
                   <span className="font-mono text-xs break-all">{loan.debitAccountId}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 dark:text-slate-400">Остаток:</span>{" "}
+                  <span className="text-slate-500 dark:text-slate-400">Тело кредита:</span>{" "}
                   {formatCurrency(loan.outstandingPrincipal, loan.currency)}
                 </div>
+                {loan.status === "ACTIVE" && (
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400">Общий долг:</span>{" "}
+                    {loanFullDebt != null
+                      ? formatCurrency(loanFullDebt, loan.currency)
+                      : "…"}
+                  </div>
+                )}
                 <div>
                   <span className="text-slate-500 dark:text-slate-400">Платёж в месяц:</span>{" "}
                   {formatCurrency(loan.monthlyPayment, loan.currency)}
